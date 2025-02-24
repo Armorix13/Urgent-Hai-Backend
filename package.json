@@ -1,0 +1,29 @@
+{
+  "name": "demotask",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "A sample project to demonstrate express and other dependencies",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "chalk": "^5.4.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.10.1",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.10.0",
+    "twilio": "^5.4.5",
+    "uuid": "^11.1.0"
+  }
+}
