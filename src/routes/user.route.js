@@ -6,15 +6,44 @@ import userValidationSchemas from "../schema/user.schema.js";
 
 const userRoute = express.Router();
 
-
-userRoute.post("/user-register", validate(userValidationSchemas.registerUserSchema), userController.registerUser);
-userRoute.post("/user-login", validate(userValidationSchemas.loginUserSchema), userController.loginUser);
-userRoute.post("/forget-password", validate(userValidationSchemas.forgetPasswordSchema), userController.forgetPassword);
-userRoute.post("/verify-otp", validate(userValidationSchemas.verifyOtpSchema), userController.verifyOtp);
-userRoute.put("/user-update", validate(userValidationSchemas.updateUserSchema), authenticate, userController.updateUser);
+userRoute.post(
+  "/user-register",
+  validate(userValidationSchemas.registerUserSchema),
+  userController.registerUser
+);
+userRoute.post(
+  "/user-login",
+  validate(userValidationSchemas.loginUserSchema),
+  userController.loginUser
+);
+userRoute.post(
+  "/forget-password",
+  validate(userValidationSchemas.forgetPasswordSchema),
+  userController.forgetPassword
+);
+userRoute.post(
+  "/verify-otp",
+  validate(userValidationSchemas.verifyOtpSchema),
+  userController.verifyOtp
+);
+userRoute.post(
+  "/reset-password",
+  validate(userValidationSchemas.resetPasswordSchema),
+  userController.resetPassword
+);
+userRoute.put(
+  "/user-update",
+  validate(userValidationSchemas.updateUserSchema),
+  authenticate,
+  userController.updateUser
+);
 userRoute.get("/user-detail", authenticate, userController.getUserDetails);
-userRoute.put("/change-password", validate(userValidationSchemas.changePasswordSchema), authenticate, userController.changePassword);
+userRoute.put(
+  "/change-password",
+  validate(userValidationSchemas.changePasswordSchema),
+  authenticate,
+  userController.changePassword
+);
 userRoute.delete("/delete-account", authenticate, userController.deleteAccount);
-
 
 export default userRoute;
