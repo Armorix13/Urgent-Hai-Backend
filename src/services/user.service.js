@@ -30,21 +30,20 @@ const registerUser = async (req) => {
     } = req.body;
 
     const existingUserByEmail = await getUserByEmail(email.toLowerCase());
-    const existingUserByuserName = await getUserByuserName(userName);
+    // const existingUserByuserName = await getUserByuserName(userName);
 
     if (existingUserByEmail) {
       throw new Error("User already exists with this email.");
     }
-    if (existingUserByuserName) {
-      throw new Error("User already exists with this userName.");
-    }
+    // if (existingUserByuserName) {
+    //   throw new Error("User already exists with this userName.");
+    // }
 
     const hashedPassword = await helper.hashPassword(password);
 
     const newUser = new User({
       email: email.toLowerCase(),
       password: hashedPassword,
-      name,
       deviceType,
       deviceToken,
       age,
@@ -143,7 +142,7 @@ const forgetPassword = async (req) => {
     const { email } = req.body;
     const user = await getUserByEmail(email.toLowerCase());
     if (!user) {
-      throw new Error("User not found.");
+      throw new Error("User/email not exist.");
     }
     if (user.otp && user.otpExpiry > Date.now()) {
       throw new Error(
@@ -205,6 +204,13 @@ const setPassowrd = async (req) => {
     if (!user.isOtpVerified) {
       throw new Error("Otp is not verifed");
     }
+    const comparePassword = await helper.verifyPassword(
+      password,
+      user.password
+    );
+    if (comparePassword) {
+      throw new Error("new password is not same as old");
+    }
     const hashedPassword = await helper.hashPassword(password);
     (user.password = hashedPassword), await user.save();
     return;
@@ -217,7 +223,7 @@ const updateUser = async (req) => {
   try {
     const userId = req.userId;
     const {
-      name,
+      userName,
       email,
       timeZone,
       profileImage,
@@ -231,7 +237,7 @@ const updateUser = async (req) => {
     if (!user) {
       throw new Error("User not found.");
     }
-    if (name) user.name = name;
+    if (userName) user.userName = userName;
     if (email) {
       const existingUserByEmail = await getUserByEmail(email.toLowerCase());
       if (

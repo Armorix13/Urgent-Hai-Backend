@@ -10,13 +10,16 @@ const registerUserSchema = {
       "string.min": "Password must be at least 8 characters long.",
       "any.required": "Password is required.",
     }),
-    userName: Joi.string().min(3).required().messages({
-      "string.min": "Name must be at least 3 characters long.",
+    userName: Joi.string().min(7).required().messages({
+      "string.min": "Name must be at least 7 characters long.",
       "any.required": "Name is required.",
     }),
     deviceType: Joi.number().valid(1, 2).required().messages({
       "any.only": "Device type must be either Android (1) or iOS (2).",
       "any.required": "Device type is required.",
+    }),
+    age: Joi.number().required().messages({
+      "any.required": "age is required.",
     }),
     deviceToken: Joi.string().required().messages({
       "any.required": "Device Token is required.",
@@ -71,8 +74,8 @@ const verifyOtpSchema = {
 
 const updateUserSchema = {
   body: Joi.object().keys({
-    name: Joi.string().min(3).optional().messages({
-      "string.min": "Name must be at least 3 characters long.",
+    userName: Joi.string().min(7).optional().messages({
+      "string.min": "Name must be at least 7 characters long.",
     }),
     email: Joi.string().email().optional().messages({
       "string.email": "Please provide a valid email address.",
@@ -89,6 +92,9 @@ const updateUserSchema = {
       "any.only": 'Gender must be one of "male", "female", or "other".',
     }),
     address: Joi.string().optional(),
+    age: Joi.number().optional().messages({
+      "any.required": "age is required.",
+    }),
   }),
 };
 
@@ -113,8 +119,8 @@ const changePasswordSchema = {
 const resetPasswordSchema = {
   body: Joi.object().keys({
     password: Joi.string().min(8).required().messages({
-      "string.min": "Old password must be at least 8 characters long.",
-      "any.required": "Old password is required.",
+      "string.min": "password must be at least 8 characters long.",
+      "any.required": "password is required.",
     }),
     email: Joi.string().email().required().messages({
       "string.email": "Please provide a valid email address.",
