@@ -27,6 +27,7 @@ const registerUser = async (req) => {
       deviceToken,
       age,
       gender,
+      language,
     } = req.body;
 
     const existingUserByEmail = await getUserByEmail(email.toLowerCase());
@@ -49,6 +50,7 @@ const registerUser = async (req) => {
       age,
       gender,
       userName,
+      language,
     });
 
     const jti = helper.generateRandomJti(16);
@@ -232,6 +234,7 @@ const updateUser = async (req) => {
       gender,
       address,
       age,
+      language,
     } = req.body;
     const user = await getUserById(userId);
     if (!user) {
@@ -259,6 +262,7 @@ const updateUser = async (req) => {
     }
     if (profileImage) user.profileImage = profileImage;
     if (gender) user.gender = gender;
+    if (language) user.gender = language;
     if (age) user.age = age;
     if (address) user.address = address;
     if (timeZone) user.timeZone = timeZone;

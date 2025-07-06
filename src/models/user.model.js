@@ -67,6 +67,10 @@ const userSchema = new Schema(
     address: {
       type: String,
     },
+    language: {
+      type: Number,
+      enum: [1, 2, 3, 4, 5, 6, 7],
+    },
     location: {
       type: {
         type: String,

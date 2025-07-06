@@ -5,7 +5,9 @@ const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      return res.status(401).json({ message: "Authorization header is missing" });
+      return res
+        .status(401)
+        .json({ message: "Authorization header is missing" });
     }
     const token = authHeader.split(" ")[1];
     if (!token) {
@@ -17,12 +19,14 @@ const authenticate = async (req, res, next) => {
     }
     const user = await User.findById(decoded._id);
     if (!user || user.jti !== decoded.jti) {
-      return res.status(401).json({ message: "Invalid token, please authenticate" });
+      return res
+        .status(401)
+        .json({ message: "Invalid token, please authenticate" });
     }
     req.userId = decoded._id;
     next();
   } catch (error) {
-    return res.status(500).json({ message: `Error: ${error.message}` });
+    next(error);
   }
 };
 
