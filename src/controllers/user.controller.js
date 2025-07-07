@@ -2,11 +2,11 @@ import { userService } from "../services/user.service.js";
 
 const registerUser = async (req, res, next) => {
   try {
-    const user = await userService.registerUser(req);
+    const { email, message } = await userService.registerUser(req);
     return res.status(201).json({
       success: true,
-      message: "user register successfully!",
-      user,
+      message,
+      email,
     });
   } catch (error) {
     next(error);

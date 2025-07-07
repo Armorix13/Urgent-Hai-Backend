@@ -10,9 +10,10 @@ const registerUserSchema = {
       "string.min": "Password must be at least 8 characters long.",
       "any.required": "Password is required.",
     }),
-    userName: Joi.string().min(7).required().messages({
-      "string.min": "Name must be at least 7 characters long.",
+    userName: Joi.string().max(30).required().messages({
+      "string.max": "Name must be at most 30 characters long.",
       "any.required": "Name is required.",
+      "string.empty": "Name cannot be empty.",
     }),
     deviceType: Joi.number().valid(1, 2).required().messages({
       "any.only": "Device type must be either Android (1) or iOS (2).",
@@ -66,6 +67,9 @@ const forgetPasswordSchema = {
 
 const verifyOtpSchema = {
   body: Joi.object().keys({
+    type: Joi.number().required().messages({
+      "any.required": "type is required.",
+    }),
     otp: Joi.number().required().messages({
       "any.required": "OTP is required.",
     }),
@@ -78,8 +82,10 @@ const verifyOtpSchema = {
 
 const updateUserSchema = {
   body: Joi.object().keys({
-    userName: Joi.string().min(7).optional().messages({
-      "string.min": "Name must be at least 7 characters long.",
+    userName: Joi.string().max(30).optional().messages({
+      "string.max": "Name must be at most 30 characters long.",
+      "any.required": "Name is required.",
+      "string.empty": "Name cannot be empty.",
     }),
     email: Joi.string().email().optional().messages({
       "string.email": "Please provide a valid email address.",

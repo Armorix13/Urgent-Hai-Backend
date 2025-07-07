@@ -1,5 +1,5 @@
 import User from "../models/user.model.js";
-import { forgetpassword } from "../utils/email.template.js";
+import { forgetpassword, verifyAccount } from "../utils/email.template.js";
 import { helper } from "../utils/helper.js";
 import { sendMessage } from "../utils/sendMessage.js";
 
@@ -31,14 +31,15 @@ const registerUser = async (req) => {
     } = req.body;
 
     const existingUserByEmail = await getUserByEmail(email.toLowerCase());
-    // const existingUserByuserName = await getUserByuserName(userName);
+    const existingUserByuserName = await getUserByuserName(userName);
 
     if (existingUserByEmail) {
       throw new Error("User already exists with this email.");
     }
-    // if (existingUserByuserName) {
-    //   throw new Error("User already exists with this userName.");
-    // }
+
+    if (existingUserByuserName) {
+      throw new Error("User already exists with this userName.");
+    }
 
     const hashedPassword = await helper.hashPassword(password);
 
@@ -51,37 +52,33 @@ const registerUser = async (req) => {
       gender,
       userName,
       language,
+      phoneNumber,
+      countryCode,
     });
 
-    const jti = helper.generateRandomJti(16);
-    newUser.jti = jti;
-
+    const otp = helper.generateOtp(6);
+    newUser.otp = otp;
+    newUser.otpExpiry = helper.addMinutesToCurrentTime(10);
+    newUser.isOtpVerified = false;
     await newUser.save();
 
-    const userObject = newUser.toObject();
+    if (email) {
+      await sendMessage.sendEmail({
+        userEmail: email,
+        subject: "Account verification OTP",
+        text: `Your OTP for account verification is ${otp}`,
+        html: verifyAccount(otp),
+      });
+    }
 
-    const payload = {
-      _id: userObject._id,
-      jti: userObject.jti,
-      role: userObject.role,
+    return {
+      message:
+        "User registered successfully. Please verify the OTP sent to your email.",
+      email,
     };
-
-    const access_token = helper.generateToken(payload, "access");
-    const refresh_token = helper.generateToken(payload, "refresh");
-
-    const {
-      password: _,
-      deviceType: __,
-      deviceToken: ___,
-      otp: ____,
-      otpExpiry: _____,
-      jti: ______,
-      ...userWithoutSensitiveData
-    } = userObject;
-
-    return { ...userWithoutSensitiveData, access_token, refresh_token };
   } catch (error) {
-    throw error;
+    console.error("Registration Error:", error);
+    throw new Error(error.message || "Internal Server Error");
   }
 };
 
@@ -146,11 +143,11 @@ const forgetPassword = async (req) => {
     if (!user) {
       throw new Error("User/email not exist.");
     }
-    if (user.otp && user.otpExpiry > Date.now()) {
-      throw new Error(
-        "An OTP was already sent. Please wait before requesting a new one."
-      );
-    }
+    // if (user.otp && user.otpExpiry > Date.now()) {
+    //   throw new Error(
+    //     "An OTP was already sent. Please wait before requesting a new one."
+    //   );
+    // }
     const otp = helper.generateOtp(6);
     user.otp = otp;
     user.otpExpiry = helper.addMinutesToCurrentTime(10);
@@ -172,7 +169,8 @@ const forgetPassword = async (req) => {
 
 const verifyOtp = async (req) => {
   try {
-    const { otp, email } = req.body;
+    const { otp, email, type, deviceType, deviceToken } = req.body; // Destructured correctly
+
     const user = await getUserByEmail(email.toLowerCase());
     if (!user) {
       throw new Error("User not found.");
@@ -185,13 +183,50 @@ const verifyOtp = async (req) => {
     if (user.otpExpiry < Date.now()) {
       throw new Error("OTP has expired. Please request a new one.");
     }
+
     user.isOtpVerified = true;
     user.otp = null;
     user.otpExpiry = null;
+    user.deviceType = deviceType;
+    user.deviceToken = deviceToken;
+
+    const jti = helper.generateRandomJti(16);
+    user.jti = jti;
+
+    if (Number(type) === 1) {
+      user.isVerified = true;
+    }
+
     await user.save();
-    return;
+
+    const userObject = user.toObject();
+    const payload = {
+      _id: userObject._id,
+      jti: userObject.jti,
+      role: userObject.role,
+    };
+
+    const access_token = helper.generateToken(payload, "access");
+    const refresh_token = helper.generateToken(payload, "refresh");
+
+    const {
+      password,
+      deviceType: _dt,
+      deviceToken: _dtt,
+      otp: _otp,
+      otpExpiry: _oe,
+      jti: _jti,
+      ...userWithoutSensitiveData
+    } = userObject;
+
+    return {
+      ...userWithoutSensitiveData,
+      access_token,
+      refresh_token,
+    };
   } catch (error) {
-    throw error;
+    console.error("OTP verification error:", error);
+    throw new Error(error.message || "OTP verification failed.");
   }
 };
 
