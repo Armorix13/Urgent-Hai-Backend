@@ -36,7 +36,7 @@ const userSchema = new Schema(
       enum: [genderType.FEMALE, genderType.MALE, genderType.OTHER],
     },
     otp: {
-      type: Number,
+      type: String,
     },
     otpExpiry: {
       type: Number,
@@ -68,8 +68,16 @@ const userSchema = new Schema(
       type: String,
     },
     language: {
-      type: Number,
-      enum: [1, 2, 3, 4, 5, 6, 7],
+      type: String,
+      enum: [
+        "Punjabi",
+        "Urdu",
+        "Faarsi",
+        "Hindi",
+        "English",
+        "Spanish",
+        "French",
+      ],
     },
     location: {
       type: {

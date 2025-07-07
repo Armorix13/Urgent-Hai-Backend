@@ -28,10 +28,21 @@ const registerUserSchema = {
     gender: Joi.string().valid(1, 2, 3).optional().messages({
       "any.only": 'Gender must be one of "male", "female", or "other".',
     }),
-    language: Joi.string().valid(1, 2, 3, 4, 5, 6, 7).optional().messages({
-      "any.only":
-        'Language must be one of "1", "2", "3", "4", "5", "6", or "7".',
-    }),
+    language: Joi.string()
+      .valid(
+        "Punjabi",
+        "Urdu",
+        "Faarsi",
+        "Hindi",
+        "English",
+        "Spanish",
+        "French"
+      )
+      .required()
+      .messages({
+        "any.only":
+          'Language must be one of "Punjabi", "Urdu", "Faarsi", "Hindi", "English", "Spanish", or "French".',
+      }),
   }),
 };
 
@@ -105,10 +116,21 @@ const updateUserSchema = {
     age: Joi.number().optional().messages({
       "any.required": "age is required.",
     }),
-    language: Joi.string().valid(1, 2, 3, 4, 5, 6, 7).optional().messages({
-      "any.only":
-        'Language must be one of "1", "2", "3", "4", "5", "6", or "7".',
-    }),
+    language: Joi.string()
+      .valid(
+        "Punjabi",
+        "Urdu",
+        "Faarsi",
+        "Hindi",
+        "English",
+        "Spanish",
+        "French"
+      )
+      .optional()
+      .messages({
+        "any.only":
+          'Language must be one of "Punjabi", "Urdu", "Faarsi", "Hindi", "English", "Spanish", or "French".',
+      }),
   }),
 };
 

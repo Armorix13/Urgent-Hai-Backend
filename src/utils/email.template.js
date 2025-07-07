@@ -122,7 +122,7 @@ export const verifyAccount = (otp) => `
       <h2>Verify Your Account</h2>
       <p>Thank you for registering with us! Please use the following one-time password (OTP) to verify your account.</p>
       
-      <div class="otp">\${otp}</div>
+      <div class="otp">${otp}</div>
       
       <p>This OTP will expire in 10 minutes. If you did not create an account, please disregard this email.</p>
       <p>To verify your account, enter the OTP on the account verification page.</p>

@@ -40,10 +40,11 @@ const forgetPassword = async (req, res, next) => {
 
 const verifyOtp = async (req, res, next) => {
   try {
-    await userService.verifyOtp(req);
+    const data = await userService.verifyOtp(req);
     return res.status(200).json({
       success: true,
       message: "otp verified successfully!",
+      data,
     });
   } catch (error) {
     next(error);

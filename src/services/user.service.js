@@ -14,7 +14,6 @@ export const getUserByEmail = async (email) => {
 export const getUserByuserName = async (userName) => {
   return await User.findOne({ userName });
 };
-
 const registerUser = async (req) => {
   try {
     const {
@@ -30,21 +29,41 @@ const registerUser = async (req) => {
       language,
     } = req.body;
 
-    const existingUserByEmail = await getUserByEmail(email.toLowerCase());
-    const existingUserByuserName = await getUserByuserName(userName);
+    const lowerCaseEmail = email.toLowerCase();
+    const existingUser = await getUserByEmail(lowerCaseEmail);
 
-    if (existingUserByEmail) {
+    // CASE 1: User exists and is verified → Block
+    if (existingUser && existingUser.isVerified) {
       throw new Error("User already exists with this email.");
     }
 
-    if (existingUserByuserName) {
-      throw new Error("User already exists with this userName.");
+    // CASE 2: User exists but not verified → Resend OTP
+    if (existingUser && !existingUser.isVerified) {
+      const otp = helper.generateOtp(6);
+      existingUser.otp = otp;
+      existingUser.otpExpiry = helper.addMinutesToCurrentTime(10);
+      existingUser.deviceType = deviceType;
+      existingUser.deviceToken = deviceToken;
+      await existingUser.save();
+
+      await sendMessage.sendEmail({
+        userEmail: lowerCaseEmail,
+        subject: "Resent OTP for Account Verification",
+        text: `Your OTP for account verification is ${otp}`,
+        html: verifyAccount(otp),
+      });
+
+      return {
+        message: "OTP re-sent. Please verify your email.",
+        email: lowerCaseEmail,
+      };
     }
 
+    // CASE 3: New user → Proceed with registration
     const hashedPassword = await helper.hashPassword(password);
 
     const newUser = new User({
-      email: email.toLowerCase(),
+      email: lowerCaseEmail,
       password: hashedPassword,
       deviceType,
       deviceToken,
@@ -60,21 +79,20 @@ const registerUser = async (req) => {
     newUser.otp = otp;
     newUser.otpExpiry = helper.addMinutesToCurrentTime(10);
     newUser.isOtpVerified = false;
+
     await newUser.save();
 
-    if (email) {
-      await sendMessage.sendEmail({
-        userEmail: email,
-        subject: "Account verification OTP",
-        text: `Your OTP for account verification is ${otp}`,
-        html: verifyAccount(otp),
-      });
-    }
+    await sendMessage.sendEmail({
+      userEmail: lowerCaseEmail,
+      subject: "Account verification OTP",
+      text: `Your OTP for account verification is ${otp}`,
+      html: verifyAccount(otp),
+    });
 
     return {
       message:
         "User registered successfully. Please verify the OTP sent to your email.",
-      email,
+      email: lowerCaseEmail,
     };
   } catch (error) {
     console.error("Registration Error:", error);
@@ -169,7 +187,7 @@ const forgetPassword = async (req) => {
 
 const verifyOtp = async (req) => {
   try {
-    const { otp, email, type, deviceType, deviceToken } = req.body; // Destructured correctly
+    const { otp, email, type, deviceType, deviceToken } = req.body;
 
     const user = await getUserByEmail(email.toLowerCase());
     if (!user) {
@@ -200,15 +218,6 @@ const verifyOtp = async (req) => {
     await user.save();
 
     const userObject = user.toObject();
-    const payload = {
-      _id: userObject._id,
-      jti: userObject.jti,
-      role: userObject.role,
-    };
-
-    const access_token = helper.generateToken(payload, "access");
-    const refresh_token = helper.generateToken(payload, "refresh");
-
     const {
       password,
       deviceType: _dt,
@@ -219,10 +228,28 @@ const verifyOtp = async (req) => {
       ...userWithoutSensitiveData
     } = userObject;
 
+    // ✅ If type === 1 → send tokens
+    if (Number(type) === 1) {
+      const payload = {
+        _id: userObject._id,
+        jti: userObject.jti,
+        role: userObject.role,
+      };
+
+      const access_token = helper.generateToken(payload, "access");
+      const refresh_token = helper.generateToken(payload, "refresh");
+
+      return {
+        ...userWithoutSensitiveData,
+        access_token,
+        refresh_token,
+      };
+    }
+
+    // ❌ Else → return only user data
     return {
       ...userWithoutSensitiveData,
-      access_token,
-      refresh_token,
+      message: "OTP verified successfully. No token issued for this type.",
     };
   } catch (error) {
     console.error("OTP verification error:", error);
