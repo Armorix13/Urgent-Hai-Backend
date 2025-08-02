@@ -1,6 +1,5 @@
 import RaagDetail from "../models/RaagDetail.model.js";
 
-// Add new RaagDetail
 const addRaagDetail = async (req) => {
   try {
     const {

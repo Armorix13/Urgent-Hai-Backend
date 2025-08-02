@@ -1,7 +1,6 @@
 import RaagModel from "../models/Raag.model.js";
 import RaagDetailModel from "../models/RaagDetail.model.js";
 
-// Add a new Raag
 const addRaag = async (req) => {
   try {
     const { id, name } = req.body;
@@ -41,7 +40,6 @@ const getAllRaags = async (req) => {
   }
 };
 
-// Get Raag by ID
 const getRaagById = async (req) => {
   try {
     const { id } = req.params;
@@ -71,7 +69,6 @@ const getRaagById = async (req) => {
   }
 };
 
-// Update Raag by ID
 const updateRaag = async (req) => {
   try {
     const { id } = req.params;
@@ -93,7 +90,6 @@ const updateRaag = async (req) => {
   }
 };
 
-// Delete Raag by ID
 const deleteRaag = async (req) => {
   try {
     const { id } = req.params;
