@@ -1,4 +1,4 @@
-import RaagDetail from "../models/RaagDetail.model.js";
+import RaagDetail from "../models/raagDetail.model.js";
 
 const addRaagDetail = async (req) => {
   try {

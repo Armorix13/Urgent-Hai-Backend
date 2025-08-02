@@ -1,5 +1,5 @@
-import RaagModel from "../models/Raag.model.js";
-import RaagDetailModel from "../models/RaagDetail.model.js";
+import RaagModel from "../models/raag.model.js";
+import RaagDetailModel from "../models/raagDetail.model.js";
 
 const addRaag = async (req) => {
   try {
