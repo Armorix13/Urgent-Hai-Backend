@@ -41,10 +41,7 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    countryCode: {
-      type: String,
-    },
-    phoneNumber: {
+    contact: {
       type: String,
     },
   },
