@@ -22,10 +22,45 @@ const getAllRaags = async (req) => {
     const limit = parseInt(req.query.limit) || 100;
     const skip = (page - 1) * limit;
 
-    const raags = await RaagModel.find()
-      .sort({ id: 1 }) // Sort ascending by id
-      .skip(skip)
-      .limit(limit);
+    const raags = await RaagModel.aggregate([
+      { $sort: { id: 1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "raagdetails", // Must match your actual MongoDB collection name
+          localField: "_id",
+          foreignField: "raag",
+          as: "detail",
+        },
+      },
+      {
+        $unwind: {
+          path: "$detail",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          sur: "$detail.sur",
+          thaat: "$detail.thaat",
+          wargitSur: "$detail.wargitSur",
+          jaati: "$detail.jaati",
+          time: "$detail.time",
+          vaadi: "$detail.vaadi",
+          samvadi: "$detail.samvadi",
+          aroh: "$detail.aroh",
+          avroh: "$detail.avroh",
+          audioUrl: "$detail.audioUrl",
+          listOfBandish: "$detail.listOfBandish",
+        },
+      },
+      {
+        $project: {
+          detail: 0, // Exclude nested detail object after flattening
+        },
+      },
+    ]);
 
     const total = await RaagModel.countDocuments();
 
