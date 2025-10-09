@@ -13,3 +13,9 @@ export const deviceType = {
   IOS: 1,
   ANDROID: 2,
 };
+
+export const professionType = {
+  RAAGI: 1,
+  DHADHI: 2,
+  KATHA_VACHAK: 3,
+};
