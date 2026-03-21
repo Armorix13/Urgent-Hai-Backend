@@ -1,7 +1,9 @@
 import User from "../models/user.model.js";
+import Subscription from "../models/subscription.model.js";
 import { forgetpassword, verifyAccount } from "../utils/email.template.js";
 import { helper } from "../utils/helper.js";
 import { sendMessage } from "../utils/sendMessage.js";
+import { subscriptionStatusType } from "../utils/enum.js";
 
 export const getUserById = async (id) => {
   return await User.findById(id);
@@ -371,6 +373,7 @@ const getUserDetails = async (req) => {
     if (!user) {
       throw new Error("User not found.");
     }
+
     const {
       password: _,
       deviceType: __,
@@ -380,7 +383,34 @@ const getUserDetails = async (req) => {
       jti: ______,
       ...userWithoutSensitiveData
     } = user.toObject();
-    return userWithoutSensitiveData;
+
+    const activeSubscription = await Subscription.findOne({
+      userId,
+      status: subscriptionStatusType.ACTIVE,
+      expiresAt: { $gt: new Date() },
+    })
+      .populate("planId", "title price currency durationMonths discountPercentage")
+      .sort({ expiresAt: -1 })
+      .lean();
+
+    const currentPlan = activeSubscription?.planId || null;
+    const subscription = activeSubscription
+      ? {
+          id: activeSubscription._id,
+          status: activeSubscription.status,
+          paymentStatus: activeSubscription.paymentStatus,
+          startedAt: activeSubscription.startedAt,
+          expiresAt: activeSubscription.expiresAt,
+          plan: currentPlan,
+        }
+      : null;
+
+    return {
+      ...userWithoutSensitiveData,
+      subscription,
+      currentPlan,
+      isPremium: !!activeSubscription,
+    };
   } catch (error) {
     throw error;
   }
