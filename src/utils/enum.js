@@ -19,3 +19,22 @@ export const professionType = {
   DHADHI: 2,
   KATHA_VACHAK: 3,
 };
+
+export const currencyType = {
+  INR: "INR",
+  USD: "USD",
+  EUR: "EUR",
+};
+
+export const subscriptionStatusType = {
+  PENDING: 1,
+  ACTIVE: 2,
+  CANCELLED: 3,
+  EXPIRED: 4,
+};
+
+export const paymentStatusType = {
+  PENDING: 1,
+  PAID: 2,
+  FAILED: 3,
+};

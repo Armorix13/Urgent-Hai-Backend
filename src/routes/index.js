@@ -9,6 +9,10 @@ import raagDetailRoute from "./raagDetail.route.js";
 import videoRouter from "./video.route.js";
 import gurbaniRouter from "./gurbani.route.js";
 import collaboratorRoute from "./collaborator.route.js";
+import suggestionRoute from "./suggestion.route.js";
+import planRoute from "./plan.route.js";
+import subscriptionRoute from "./subscription.route.js";
+
 const router = express.Router();
 
 //file upload
@@ -21,5 +25,8 @@ router.use("/raag-detail", raagDetailRoute);
 router.use("/video-tutorial", videoRouter);
 router.use("/gurbani", gurbaniRouter);
 router.use("/collaborator", collaboratorRoute);
+router.use("/suggestion", suggestionRoute);
+router.use("/plan", planRoute);
+router.use("/subscription", subscriptionRoute);
 
 export default router;

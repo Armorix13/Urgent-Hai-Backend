@@ -95,7 +95,10 @@ const updateUserSchema = {
   body: Joi.object().keys({
     userName: Joi.string().max(30).optional().messages({
       "string.max": "Name must be at most 30 characters long.",
-      "any.required": "Name is required.",
+      "string.empty": "Name cannot be empty.",
+    }),
+    fullName: Joi.string().max(30).optional().messages({
+      "string.max": "Name must be at most 30 characters long.",
       "string.empty": "Name cannot be empty.",
     }),
     email: Joi.string().email().optional().messages({
@@ -104,17 +107,28 @@ const updateUserSchema = {
     timeZone: Joi.string().optional().messages({
       "string.base": "Time zone must be a valid string.",
     }),
-    profileImage: Joi.string().uri().optional().messages({
-      "string.uri": "Profile image must be a valid URL.",
-    }),
+    profileImage: Joi.string()
+      .max(500)
+      .allow("", null)
+      .optional()
+      .messages({
+        "string.max": "Profile image path/URL is too long.",
+      }),
     longitude: Joi.number().optional(),
     latitude: Joi.number().optional(),
-    gender: Joi.string().valid(1, 2, 3).optional().messages({
-      "any.only": 'Gender must be one of "male", "female", or "other".',
-    }),
+    gender: Joi.alternatives()
+      .try(
+        Joi.number().valid(1, 2, 3),
+        Joi.string().valid("male", "female", "other", "Male", "Female", "Other")
+      )
+      .optional()
+      .messages({
+        "any.only": 'Gender must be 1/2/3 or "male"/"female"/"other".',
+      }),
     address: Joi.string().optional(),
-    age: Joi.number().optional().messages({
-      "any.required": "age is required.",
+    age: Joi.number().min(1).max(120).optional().messages({
+      "number.min": "Age must be at least 1.",
+      "number.max": "Age must be at most 120.",
     }),
     language: Joi.string()
       .valid(
@@ -135,21 +149,34 @@ const updateUserSchema = {
 };
 
 const changePasswordSchema = {
-  body: Joi.object().keys({
-    oldPassword: Joi.string().min(8).required().messages({
-      "string.min": "Old password must be at least 8 characters long.",
-      "any.required": "Old password is required.",
-    }),
-    newPassword: Joi.string()
-      .min(8)
-      .required()
-      .not(Joi.ref("oldPassword"))
-      .messages({
-        "string.min": "New password must be at least 8 characters long.",
-        "any.required": "New password is required.",
-        "any.invalid": "New password cannot be the same as the old password.",
-      }),
-  }),
+  body: Joi.object()
+    .keys({
+      oldPassword: Joi.string()
+        .trim()
+        .min(8)
+        .max(128)
+        .required()
+        .messages({
+          "string.min": "Old password must be at least 8 characters long.",
+          "string.max": "Old password is too long.",
+          "any.required": "Old password is required.",
+          "string.empty": "Old password cannot be empty.",
+        }),
+      newPassword: Joi.string()
+        .trim()
+        .min(8)
+        .max(128)
+        .required()
+        .invalid(Joi.ref("oldPassword"))
+        .messages({
+          "string.min": "New password must be at least 8 characters long.",
+          "string.max": "New password is too long.",
+          "any.required": "New password is required.",
+          "string.empty": "New password cannot be empty.",
+          "any.invalid": "New password cannot be the same as the old password.",
+        }),
+    })
+    .options({ stripUnknown: true }),
 };
 
 const resetPasswordSchema = {

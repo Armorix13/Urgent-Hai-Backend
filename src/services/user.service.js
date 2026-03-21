@@ -283,11 +283,28 @@ const setPassowrd = async (req) => {
   }
 };
 
+const GENDER_MAP = {
+  male: 1,
+  female: 2,
+  other: 3,
+  Male: 1,
+  Female: 2,
+  Other: 3,
+};
+
+const normalizeGender = (value) => {
+  if (value == null) return undefined;
+  if (typeof value === "number" && [1, 2, 3].includes(value)) return value;
+  if (typeof value === "string") return GENDER_MAP[value];
+  return undefined;
+};
+
 const updateUser = async (req) => {
   try {
     const userId = req.userId;
     const {
       userName,
+      fullName,
       email,
       timeZone,
       profileImage,
@@ -302,7 +319,9 @@ const updateUser = async (req) => {
     if (!user) {
       throw new Error("User not found.");
     }
-    if (userName) user.userName = userName;
+    // Support both userName and fullName (Edit Profile UI label)
+    const nameToSet = userName || fullName;
+    if (nameToSet) user.userName = nameToSet;
     if (email) {
       const existingUserByEmail = await getUserByEmail(email.toLowerCase());
       if (
@@ -314,7 +333,7 @@ const updateUser = async (req) => {
       user.email = email.toLowerCase();
     }
 
-    if (latitude && longitude) {
+    if (latitude != null && longitude != null) {
       user.latitude = latitude;
       user.longitude = longitude;
       user.location = {
@@ -322,12 +341,13 @@ const updateUser = async (req) => {
         coordinates: [longitude, latitude],
       };
     }
-    if (profileImage) user.profileImage = profileImage;
-    if (gender) user.gender = gender;
-    if (language) user.gender = language;
-    if (age) user.age = age;
-    if (address) user.address = address;
-    if (timeZone) user.timeZone = timeZone;
+    if (profileImage !== undefined) user.profileImage = profileImage;
+    const normalizedGender = normalizeGender(gender);
+    if (normalizedGender) user.gender = normalizedGender;
+    if (language) user.language = language;
+    if (age != null) user.age = age;
+    if (address !== undefined) user.address = address;
+    if (timeZone !== undefined) user.timeZone = timeZone;
     await user.save();
     const {
       password: _,
@@ -376,6 +396,12 @@ const changePassword = async (req) => {
       throw new Error("User not found.");
     }
 
+    if (!user.password) {
+      throw new Error(
+        "Cannot change password. This account uses social login."
+      );
+    }
+
     const isOldPasswordValid = await helper.verifyPassword(
       oldPassword,
       user.password
@@ -384,16 +410,7 @@ const changePassword = async (req) => {
       throw new Error("Old password is incorrect.");
     }
 
-    if (oldPassword === newPassword) {
-      throw new Error("New password cannot be the same as the old password.");
-    }
-
-    if (newPassword.length < 8) {
-      throw new Error("New password must be at least 8 characters long.");
-    }
-
     const hashedPassword = await helper.hashPassword(newPassword);
-
     user.password = hashedPassword;
     await user.save();
     return;
