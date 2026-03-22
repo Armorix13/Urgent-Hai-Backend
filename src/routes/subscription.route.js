@@ -17,8 +17,14 @@ subscriptionRoute.post(
 );
 
 // Confirm payment (after Razorpay/Stripe success)
+// Supports: PUT /subscription/:id/confirm-payment  OR  PUT /subscription/purchase/:id/confirm-payment
 subscriptionRoute.put(
   "/:id/confirm-payment",
+  validate(subscriptionValidationSchemas.confirmPaymentSchema),
+  subscriptionController.confirmPayment
+);
+subscriptionRoute.put(
+  "/purchase/:id/confirm-payment",
   validate(subscriptionValidationSchemas.confirmPaymentSchema),
   subscriptionController.confirmPayment
 );
