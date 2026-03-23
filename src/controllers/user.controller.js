@@ -13,6 +13,19 @@ const registerUser = async (req, res, next) => {
   }
 };
 
+const socialLogin = async (req, res, next) => {
+  try {
+    const user = await userService.socialLogin(req);
+    return res.status(200).json({
+      success: true,
+      message: "Social login successful!",
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const loginUser = async (req, res, next) => {
   try {
     const user = await userService.loginUser(req);
@@ -116,6 +129,7 @@ const deleteAccount = async (req, res, next) => {
 export const userController = {
   registerUser,
   loginUser,
+  socialLogin,
   forgetPassword,
   updateUser,
   getUserDetails,

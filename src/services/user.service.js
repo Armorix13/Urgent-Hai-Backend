@@ -46,6 +46,8 @@ const registerUser = async (req) => {
       existingUser.otpExpiry = helper.addMinutesToCurrentTime(10);
       existingUser.deviceType = deviceType;
       existingUser.deviceToken = deviceToken;
+      if (phoneNumber !== undefined) existingUser.phoneNumber = phoneNumber;
+      if (countryCode !== undefined) existingUser.countryCode = countryCode;
       await existingUser.save();
 
       await sendMessage.sendEmail({
@@ -99,6 +101,97 @@ const registerUser = async (req) => {
   } catch (error) {
     console.error("Registration Error:", error);
     throw new Error(error.message || "Internal Server Error");
+  }
+};
+
+const socialLogin = async (req) => {
+  try {
+    const {
+      email,
+      provider,
+      providerId,
+      userName,
+      firstName,
+      lastName,
+      profileImage,
+      phoneNumber,
+      countryCode,
+      deviceType,
+      deviceToken,
+    } = req.body;
+
+    const lowerCaseEmail = email.toLowerCase();
+    let user = await User.findOne({
+      email: lowerCaseEmail,
+      role: { $in: [1, 2] },
+    });
+
+    if (user) {
+      if (user.provider && user.providerId) {
+        if (user.provider !== provider || user.providerId !== providerId) {
+          user.provider = provider;
+          user.providerId = providerId;
+        }
+      } else {
+        user.provider = provider;
+        user.providerId = providerId;
+      }
+
+      const displayName =
+        userName || [firstName, lastName].filter(Boolean).join(" ").trim();
+      if (profileImage) user.profileImage = profileImage;
+      if (displayName) user.userName = displayName;
+      if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+      if (countryCode !== undefined) user.countryCode = countryCode;
+
+      user.deviceType = deviceType;
+      user.deviceToken = deviceToken;
+      user.isVerified = true;
+      user.socialId = providerId;
+      await user.save();
+    } else {
+      const displayName =
+        userName || [firstName, lastName].filter(Boolean).join(" ").trim() || "User";
+      user = await User.create({
+        email: lowerCaseEmail,
+        provider,
+        providerId,
+        socialId: providerId,
+        userName: displayName,
+        profileImage: profileImage || undefined,
+        phoneNumber: phoneNumber || undefined,
+        countryCode: countryCode || undefined,
+        deviceType,
+        deviceToken,
+        isVerified: true,
+      });
+    }
+
+    const jti = helper.generateRandomJti(16);
+    user.jti = jti;
+    await user.save();
+
+    const userObject = user.toObject();
+    const payload = {
+      _id: userObject._id,
+      jti: userObject.jti,
+      role: userObject.role,
+    };
+    const access_token = helper.generateToken(payload, "access");
+    const refresh_token = helper.generateToken(payload, "refresh");
+
+    const {
+      password: _,
+      deviceType: __,
+      deviceToken: ___,
+      otp: ____,
+      otpExpiry: _____,
+      jti: ______,
+      ...userWithoutSensitiveData
+    } = userObject;
+    return { ...userWithoutSensitiveData, access_token, refresh_token };
+  } catch (error) {
+    throw error;
   }
 };
 
@@ -316,6 +409,8 @@ const updateUser = async (req) => {
       address,
       age,
       language,
+      phoneNumber,
+      countryCode,
     } = req.body;
     const user = await getUserById(userId);
     if (!user) {
@@ -350,6 +445,8 @@ const updateUser = async (req) => {
     if (age != null) user.age = age;
     if (address !== undefined) user.address = address;
     if (timeZone !== undefined) user.timeZone = timeZone;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    if (countryCode !== undefined) user.countryCode = countryCode;
     await user.save();
     const {
       password: _,
@@ -468,6 +565,7 @@ const deleteAccount = async (req) => {
 export const userService = {
   registerUser,
   loginUser,
+  socialLogin,
   forgetPassword,
   verifyOtp,
   setPassowrd,

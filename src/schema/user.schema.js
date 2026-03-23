@@ -25,6 +25,12 @@ const registerUserSchema = {
     deviceToken: Joi.string().required().messages({
       "any.required": "Device Token is required.",
     }),
+    phoneNumber: Joi.string().trim().max(20).optional().messages({
+      "string.max": "Phone number must be at most 20 characters.",
+    }),
+    countryCode: Joi.string().trim().max(10).optional().messages({
+      "string.max": "Country code must be at most 10 characters.",
+    }),
     gender: Joi.string().valid(1, 2, 3).optional().messages({
       "any.only": 'Gender must be one of "male", "female", or "other".',
     }),
@@ -130,6 +136,12 @@ const updateUserSchema = {
       "number.min": "Age must be at least 1.",
       "number.max": "Age must be at most 120.",
     }),
+    phoneNumber: Joi.string().trim().max(20).optional().messages({
+      "string.max": "Phone number must be at most 20 characters.",
+    }),
+    countryCode: Joi.string().trim().max(10).optional().messages({
+      "string.max": "Country code must be at most 10 characters.",
+    }),
     language: Joi.string()
       .valid(
         "Punjabi",
@@ -179,6 +191,51 @@ const changePasswordSchema = {
     .options({ stripUnknown: true }),
 };
 
+const socialLoginSchema = {
+  body: Joi.object().keys({
+    email: Joi.string().email().required().messages({
+      "string.email": "Please provide a valid email address.",
+      "any.required": "Email is required.",
+    }),
+    provider: Joi.string()
+      .valid("google", "apple")
+      .required()
+      .messages({
+        "any.only": "Provider must be google or apple.",
+        "any.required": "Provider is required.",
+      }),
+    providerId: Joi.string().required().messages({
+      "any.required": "Provider ID is required.",
+      "string.empty": "Provider ID cannot be empty.",
+    }),
+    userName: Joi.string().trim().max(50).optional().messages({
+      "string.max": "Name must be at most 50 characters long.",
+    }),
+    firstName: Joi.string().trim().max(30).optional().messages({
+      "string.max": "First name must be at most 30 characters long.",
+    }),
+    lastName: Joi.string().trim().max(30).optional().messages({
+      "string.max": "Last name must be at most 30 characters long.",
+    }),
+    profileImage: Joi.string().max(500).allow("", null).optional().messages({
+      "string.max": "Profile image URL is too long.",
+    }),
+    deviceType: Joi.number().valid(1, 2).required().messages({
+      "any.only": "Device type must be Android (1) or iOS (2).",
+      "any.required": "Device type is required.",
+    }),
+    deviceToken: Joi.string().required().messages({
+      "any.required": "Device token is required.",
+    }),
+    phoneNumber: Joi.string().trim().max(20).optional().messages({
+      "string.max": "Phone number must be at most 20 characters.",
+    }),
+    countryCode: Joi.string().trim().max(10).optional().messages({
+      "string.max": "Country code must be at most 10 characters.",
+    }),
+  }),
+};
+
 const resetPasswordSchema = {
   body: Joi.object().keys({
     password: Joi.string().min(8).required().messages({
@@ -195,6 +252,7 @@ const resetPasswordSchema = {
 const userValidationSchemas = {
   registerUserSchema,
   loginUserSchema,
+  socialLoginSchema,
   forgetPasswordSchema,
   verifyOtpSchema,
   updateUserSchema,

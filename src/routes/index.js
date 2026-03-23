@@ -12,6 +12,10 @@ import collaboratorRoute from "./collaborator.route.js";
 import suggestionRoute from "./suggestion.route.js";
 import planRoute from "./plan.route.js";
 import subscriptionRoute from "./subscription.route.js";
+import previousResultRoute from "./previousResult.route.js";
+import courseRoute from "./course.route.js";
+import courseVideoRoute from "./courseVideo.route.js";
+import enrollmentRoute from "./enrollment.route.js";
 
 const router = express.Router();
 
@@ -28,5 +32,9 @@ router.use("/collaborator", collaboratorRoute);
 router.use("/suggestion", suggestionRoute);
 router.use("/plan", planRoute);
 router.use("/subscription", subscriptionRoute);
+router.use("/previous-result", previousResultRoute);
+router.use("/course", courseRoute);
+router.use("/course-video", courseVideoRoute);
+router.use("/enrollment", enrollmentRoute);
 
 export default router;

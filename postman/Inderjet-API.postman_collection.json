@@ -1,0 +1,1069 @@
+{
+  "info": {
+    "name": "Inderjet API",
+    "description": "Complete API collection for Inderjet Backend - All APIs (User, Category, Product, Raag, Raag Detail, Video, Gurbani, Collaborator, Suggestion, Plan, Subscription, Course, Course Video, Enrollment, Previous Result, File Upload)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@yopmail.com\",\n  \"password\": \"password123\",\n  \"userName\": \"TestUser\",\n  \"deviceType\": 2,\n  \"deviceToken\": \"device_token_here\",\n  \"age\": 25,\n  \"gender\": 1,\n  \"language\": \"English\",\n  \"phoneNumber\": \"9876543210\",\n  \"countryCode\": \"+91\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/user-register",
+            "description": "Register new user. Returns success + email for OTP verification."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.user && json.user.access_token) {",
+                  "        pm.collectionVariables.set('access_token', json.user.access_token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@yopmail.com\",\n  \"password\": \"password123\",\n  \"deviceType\": 2,\n  \"deviceToken\": \"device_token_here\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/user-login",
+            "description": "Login. Saves access_token to collection for use in other requests."
+          }
+        },
+        {
+          "name": "Social Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.user && json.user.access_token) {",
+                  "        pm.collectionVariables.set('access_token', json.user.access_token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@gmail.com\",\n  \"provider\": \"google\",\n  \"providerId\": \"google_oauth_id_123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"profileImage\": \"https://example.com/photo.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"countryCode\": \"+91\",\n  \"deviceType\": 2,\n  \"deviceToken\": \"device_token_here\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/social-login",
+            "description": "Social login (Google/Apple). Saves access_token automatically."
+          }
+        },
+        {
+          "name": "Get User Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/user/user-detail",
+            "description": "Get current user profile + subscription + currentPlan + isPremium"
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Inderjit\",\n  \"email\": \"inder@yopmail.com\",\n  \"age\": 22,\n  \"gender\": \"male\",\n  \"phoneNumber\": \"9876543210\",\n  \"countryCode\": \"+91\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/user-update",
+            "description": "Update profile. Supports userName, fullName, email, age, gender, profileImage, etc."
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"password123\",\n  \"newPassword\": \"newPassword456\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/change-password",
+            "description": "Change password. Requires oldPassword and newPassword."
+          }
+        },
+        {
+          "name": "Forget Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@yopmail.com\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/forget-password",
+            "description": "Send OTP to email for password reset"
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": 1,\n  \"otp\": 123456,\n  \"email\": \"user@yopmail.com\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/verify-otp",
+            "description": "Verify OTP. type=1 for email verification, returns tokens"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@yopmail.com\",\n  \"password\": \"newPassword123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/reset-password",
+            "description": "Reset password after OTP verification"
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/user/delete-account",
+            "description": "Permanently delete user account"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Category",
+      "item": [
+        {
+          "name": "Add Category",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Music\",\n  \"description\": \"Music category\",\n  \"image\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/category",
+            "description": "Create category (auth required)"
+          }
+        },
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/category?page=1&limit=10",
+            "description": "Get all categories with pagination"
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Category\",\n  \"description\": \"Updated\",\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/category/:id",
+            "description": "Update category"
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/category/:id",
+            "description": "Delete category"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "item": [
+        {
+          "name": "Add Product",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Product Name\",\n  \"description\": \"Product description\",\n  \"price\": 999,\n  \"discountPrice\": 799,\n  \"category\": \"CATEGORY_ID_HERE\",\n  \"stock\": 10,\n  \"tags\": [\"tag1\"],\n  \"isFeatured\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/product",
+            "description": "Create product (auth required)"
+          }
+        },
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/product?page=1&limit=10",
+            "description": "Get all products with pagination"
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/product/:id",
+            "description": "Get single product"
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Product\",\n  \"price\": 899\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/product/:id",
+            "description": "Update product"
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/product/:id",
+            "description": "Delete product"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Raag",
+      "item": [
+        {
+          "name": "Add Raag",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"name\": \"Raag Bhairav\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/raag/add",
+            "description": "Create raag"
+          }
+        },
+        {
+          "name": "Get All Raags",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/raag/all",
+            "description": "Get all raags"
+          }
+        },
+        {
+          "name": "Get Raag by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/raag/detail/:id",
+            "description": "Get single raag"
+          }
+        },
+        {
+          "name": "Update Raag",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"name\": \"Updated Raag Name\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/raag/update/:id",
+            "description": "Update raag"
+          }
+        },
+        {
+          "name": "Delete Raag",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/raag/delete/:id",
+            "description": "Delete raag"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Raag Detail",
+      "item": [
+        {
+          "name": "Add Raag Detail",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"raag\": \"RAAG_ID_HERE\",\n  \"sur\": \"Sur\",\n  \"thaat\": \"Bhairav\",\n  \"aroh\": \"S R G m\",\n  \"avroh\": \"S D P\",\n  \"audioUrl\": \"/audio/raag.mp3\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/raag-detail",
+            "description": "Create raag detail"
+          }
+        },
+        {
+          "name": "Get All Raag Details",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/raag-detail",
+            "description": "Get all raag details"
+          }
+        },
+        {
+          "name": "Get Raag Detail by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/raag-detail/:id",
+            "description": "Get single raag detail"
+          }
+        },
+        {
+          "name": "Update Raag Detail",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sur\": \"Updated Sur\",\n  \"aroh\": \"S R G\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/raag-detail/:id",
+            "description": "Update raag detail"
+          }
+        },
+        {
+          "name": "Delete Raag Detail",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/raag-detail/:id",
+            "description": "Delete raag detail"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Video Tutorial",
+      "item": [
+        {
+          "name": "Add Video",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Video Title\",\n  \"description\": \"Video description\",\n  \"videoUrl\": \"/video/tutorial.mp4\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/video-tutorial",
+            "description": "Create video tutorial"
+          }
+        },
+        {
+          "name": "Get All Videos",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/video-tutorial?page=1&limit=10",
+            "description": "Get all video tutorials with pagination"
+          }
+        },
+        {
+          "name": "Get Video by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/video-tutorial/:id",
+            "description": "Get single video"
+          }
+        },
+        {
+          "name": "Update Video",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Title\",\n  \"videoUrl\": \"/video/updated.mp4\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/video-tutorial/:id",
+            "description": "Update video"
+          }
+        },
+        {
+          "name": "Delete Video",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/video-tutorial/:id",
+            "description": "Delete video"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gurbani",
+      "item": [
+        {
+          "name": "Add Gurbani",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Japji Sahib\",\n  \"description\": \"Gurbani description\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/gurbani",
+            "description": "Create gurbani"
+          }
+        },
+        {
+          "name": "Get All Gurbani",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/gurbani",
+            "description": "Get all gurbani"
+          }
+        },
+        {
+          "name": "Get Gurbani by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/gurbani/:id",
+            "description": "Get single gurbani"
+          }
+        },
+        {
+          "name": "Update Gurbani",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Title\",\n  \"description\": \"Updated\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/gurbani/:id",
+            "description": "Update gurbani"
+          }
+        },
+        {
+          "name": "Delete Gurbani",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/gurbani/:id",
+            "description": "Delete gurbani"
+          }
+        },
+        {
+          "name": "Add Baani to Gurbani",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Baani Title\",\n  \"pdfUrl\": \"/pdf/baani.pdf\",\n  \"audioUrl\": \"/audio/baani.mp3\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/gurbani/:id/baanis",
+            "description": "Add baani to gurbani"
+          }
+        },
+        {
+          "name": "Update Baani",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Baani\",\n  \"pdfUrl\": \"/pdf/updated.pdf\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/gurbani/:id/baanis/:baaniId",
+            "description": "Update baani"
+          }
+        },
+        {
+          "name": "Delete Baani",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/gurbani/:id/baanis/:baaniId",
+            "description": "Delete baani"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Collaborator",
+      "item": [
+        {
+          "name": "Add Collaborator",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"profile\": \"/image/profile.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"profession\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/collaborator/add",
+            "description": "Add collaborator. profession: 1=Raagi, 2=Dhadhi, 3=Katha Vachak"
+          }
+        },
+        {
+          "name": "Get All Collaborators",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/collaborator/get-all",
+            "description": "Get all collaborators"
+          }
+        },
+        {
+          "name": "Get Collaborator by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/collaborator/get/:id",
+            "description": "Get single collaborator"
+          }
+        },
+        {
+          "name": "Update Collaborator",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phoneNumber\": \"9876543210\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/collaborator/update/:id",
+            "description": "Update collaborator"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Suggestion",
+      "item": [
+        {
+          "name": "Create Suggestion",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Add dark mode\",\n  \"description\": \"It would be great to have a dark theme option for the app.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/suggestion",
+            "description": "Submit a suggestion (Suggestion Box)"
+          }
+        },
+        {
+          "name": "Get All Suggestions",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/suggestion",
+            "description": "List current user's suggestions"
+          }
+        },
+        {
+          "name": "Get Suggestion by ID",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/suggestion/:id",
+            "description": "Get single suggestion by ID"
+          }
+        },
+        {
+          "name": "Update Suggestion",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated title\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/suggestion/:id",
+            "description": "Update own suggestion"
+          }
+        },
+        {
+          "name": "Delete Suggestion",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/suggestion/:id",
+            "description": "Delete own suggestion"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Plan",
+      "item": [
+        {
+          "name": "Get All Plans",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "plan"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"},
+                {"key": "isActive", "value": "true", "disabled": true}
+              ]
+            },
+            "description": "Get all subscription plans (public, no auth)"
+          }
+        },
+        {
+          "name": "Get Plan by ID",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/plan/:id",
+            "description": "Get single plan by ID (public)"
+          }
+        },
+        {
+          "name": "Create Plan",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"1 Month Plan\",\n  \"durationMonths\": 1,\n  \"price\": 599,\n  \"currency\": \"INR\",\n  \"discountPercentage\": 0\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/plan",
+            "description": "Create new plan (auth required)"
+          }
+        },
+        {
+          "name": "Update Plan",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"3 Months Plan\",\n  \"price\": 1599,\n  \"discountPercentage\": 11\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/plan/:id",
+            "description": "Update plan (auth required)"
+          }
+        },
+        {
+          "name": "Delete Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/plan/:id",
+            "description": "Delete plan (auth required)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription",
+      "item": [
+        {
+          "name": "Purchase Subscription",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": \"PLAN_ID_HERE\",\n  \"paymentReference\": \"razorpay_order_xxx\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/subscription/purchase",
+            "description": "Initiate subscription purchase (Pay button). Use planId from Get All Plans."
+          }
+        },
+        {
+          "name": "Confirm Payment",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentReference\": \"razorpay_payment_xxx\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/subscription/:id/confirm-payment",
+            "description": "Activate subscription. Also supports: /subscription/purchase/:id/confirm-payment"
+          }
+        },
+        {
+          "name": "Get Active Subscription",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/subscription/active",
+            "description": "Get current user's active subscription"
+          }
+        },
+        {
+          "name": "Get All Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscription?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "subscription"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"},
+                {"key": "status", "value": "2", "disabled": true}
+              ]
+            },
+            "description": "List all user subscriptions"
+          }
+        },
+        {
+          "name": "Get Subscription by ID",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/subscription/:id",
+            "description": "Get single subscription by ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course",
+      "item": [
+        {
+          "name": "Get All Courses",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/course?page=1&limit=10&search=&courseType=&category=&level=",
+            "description": "Get courses with pagination and filters"
+          }
+        },
+        {
+          "name": "Get Course by ID",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/course/:id",
+            "description": "Get single course"
+          }
+        },
+        {
+          "name": "Get Similar Courses",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/course/:id/similar?limit=5",
+            "description": "Get similar courses by category"
+          }
+        },
+        {
+          "name": "Create Course",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Music Course\",\n  \"description\": \"Learn music\",\n  \"courseType\": 2,\n  \"category\": \"Music\",\n  \"level\": \"beginner\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/course",
+            "description": "Create course (auth required). courseType: 1=paid, 2=free. For paid add price."
+          }
+        },
+        {
+          "name": "Update Course",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Course Title\",\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/course/:id",
+            "description": "Update course"
+          }
+        },
+        {
+          "name": "Delete Course (Soft)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/course/:id",
+            "description": "Soft delete course"
+          }
+        },
+        {
+          "name": "Delete Course (Hard)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/course/:id/hard",
+            "description": "Permanently delete course"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Video",
+      "item": [
+        {
+          "name": "Get Videos by Course",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/course-video/course/:courseId",
+            "description": "Get all videos for a course"
+          }
+        },
+        {
+          "name": "Add Course Video",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"COURSE_ID_HERE\",\n  \"video_url\": \"/video/lesson1.mp4\",\n  \"title\": \"Lesson 1\",\n  \"description\": \"Intro\",\n  \"order\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/course-video",
+            "description": "Add video to course"
+          }
+        },
+        {
+          "name": "Update Course Video",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Lesson\",\n  \"order\": 2\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/course-video/:id",
+            "description": "Update course video"
+          }
+        },
+        {
+          "name": "Delete Course Video",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/course-video/:id",
+            "description": "Delete course video"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enrollment",
+      "item": [
+        {
+          "name": "Enroll in Course",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"COURSE_ID_HERE\",\n  \"transactionId\": \"txn_123\",\n  \"paymentMethod\": \"razorpay\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/enrollment",
+            "description": "Enroll in course. For paid courses include transactionId."
+          }
+        },
+        {
+          "name": "Get My Enrollments",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/enrollment",
+            "description": "Get current user's enrollments"
+          }
+        },
+        {
+          "name": "Get Enrollment by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/enrollment/:id",
+            "description": "Get single enrollment"
+          }
+        },
+        {
+          "name": "Update Progress",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completedLessonOrders\": [0, 1, 2],\n  \"completionPercentage\": 60\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/enrollment/:id/progress",
+            "description": "Update course progress"
+          }
+        },
+        {
+          "name": "Cancel Enrollment",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/enrollment/:id/cancel",
+            "description": "Cancel enrollment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Previous Result",
+      "item": [
+        {
+          "name": "Create Previous Result",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Result Title\",\n  \"description\": \"Result description\",\n  \"videoUrl\": \"/video/result.mp4\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/previous-result",
+            "description": "Create new previous result"
+          }
+        },
+        {
+          "name": "Get All Previous Results",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/previous-result?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "previous-result"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"}
+              ]
+            },
+            "description": "Get all previous results with pagination"
+          }
+        },
+        {
+          "name": "Get Previous Result by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/previous-result/:id",
+            "description": "Get single previous result by ID"
+          }
+        },
+        {
+          "name": "Update Previous Result",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Title\",\n  \"description\": \"Updated description\",\n  \"videoUrl\": \"/video/updated.mp4\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/previous-result/:id",
+            "description": "Update previous result"
+          }
+        },
+        {
+          "name": "Delete Previous Result",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/previous-result/:id",
+            "description": "Delete previous result"
+          }
+        }
+      ]
+    },
+    {
+      "name": "File Upload",
+      "item": [
+        {
+          "name": "Upload Image",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select image file"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/file-upload",
+            "description": "Upload file (image/video/audio/pdf). Field name: image. Returns url for profileImage."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "description": "Server health check"
+          }
+        }
+      ]
+    }
+  ]
+}

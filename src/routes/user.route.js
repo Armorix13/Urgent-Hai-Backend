@@ -17,6 +17,11 @@ userRoute.post(
   userController.loginUser
 );
 userRoute.post(
+  "/social-login",
+  validate(userValidationSchemas.socialLoginSchema),
+  userController.socialLogin
+);
+userRoute.post(
   "/forget-password",
   validate(userValidationSchemas.forgetPasswordSchema),
   userController.forgetPassword

@@ -1,0 +1,96 @@
+import Joi from "joi";
+import mongoose from "mongoose";
+
+const objectId = Joi.string().custom((value, helpers) => {
+  if (!mongoose.Types.ObjectId.isValid(value)) {
+    return helpers.error("any.invalid");
+  }
+  return value;
+}, "ObjectId validation");
+
+const courseContentSchema = Joi.object().keys({
+  title: Joi.string().trim().required(),
+  description: Joi.string().trim().optional(),
+  videoUrl: Joi.string().trim().optional(),
+  duration: Joi.string().trim().optional(),
+  order: Joi.number().optional(),
+  isPreview: Joi.boolean().optional(),
+});
+
+const addCourseSchema = {
+  body: Joi.object()
+    .keys({
+      title: Joi.string().trim().max(200).required(),
+      description: Joi.string().trim().max(2000).required(),
+      courseType: Joi.number().valid(1, 2).required(),
+      price: Joi.number().min(0).when("courseType", {
+        is: 1,
+        then: Joi.required(),
+        otherwise: Joi.optional(),
+      }),
+    benefits: Joi.array().items(Joi.string().max(500)).optional(),
+    category: Joi.string().trim().max(100).required(),
+    thumbnail: Joi.string().trim().optional(),
+    duration: Joi.string().trim().optional(),
+    level: Joi.string().valid("beginner", "intermediate", "advanced").optional(),
+    tags: Joi.array().items(Joi.string().lowercase()).optional(),
+    isActive: Joi.boolean().optional(),
+    courseContent: Joi.array().items(courseContentSchema).optional(),
+    prerequisites: Joi.array().items(Joi.string().trim()).optional(),
+    learningOutcomes: Joi.array().items(Joi.string().trim().max(300)).optional(),
+    })
+    .options({ stripUnknown: true }),
+};
+
+const updateCourseSchema = {
+  params: Joi.object().keys({ id: objectId.required() }),
+  body: Joi.object().keys({
+    title: Joi.string().trim().max(200).optional(),
+    description: Joi.string().trim().max(2000).optional(),
+    courseType: Joi.number().valid(1, 2).optional(),
+    price: Joi.number().min(0).optional(),
+    benefits: Joi.array().items(Joi.string().max(500)).optional(),
+    category: Joi.string().trim().max(100).optional(),
+    thumbnail: Joi.string().trim().optional(),
+    duration: Joi.string().trim().optional(),
+    level: Joi.string().valid("beginner", "intermediate", "advanced").optional(),
+    tags: Joi.array().items(Joi.string().lowercase()).optional(),
+    isActive: Joi.boolean().optional(),
+    isDeleted: Joi.boolean().optional(),
+    courseContent: Joi.array().items(courseContentSchema).optional(),
+    prerequisites: Joi.array().items(Joi.string().trim()).optional(),
+    learningOutcomes: Joi.array().items(Joi.string().trim().max(300)).optional(),
+  }),
+};
+
+const getCoursesSchema = {
+  query: Joi.object().keys({
+    page: Joi.number().integer().min(1).optional(),
+    limit: Joi.number().integer().min(1).optional(),
+    search: Joi.string().optional(),
+    courseType: Joi.number().valid(1, 2).optional(),
+    category: Joi.string().optional(),
+    level: Joi.string().valid("beginner", "intermediate", "advanced").optional(),
+    sortBy: Joi.string().optional(),
+    sortOrder: Joi.string().valid("asc", "desc").optional(),
+    minPrice: Joi.number().optional(),
+    maxPrice: Joi.number().optional(),
+    tags: Joi.string().optional(),
+  }),
+};
+
+const getCourseByIdSchema = {
+  params: Joi.object().keys({ id: objectId.required() }),
+};
+
+const deleteCourseSchema = {
+  params: Joi.object().keys({ id: objectId.required() }),
+};
+
+export default {
+  addCourseSchema,
+  updateCourseSchema,
+  getCoursesSchema,
+  getCourseByIdSchema,
+  deleteCourseSchema,
+};

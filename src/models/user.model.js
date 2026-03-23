@@ -25,6 +25,14 @@ const userSchema = new Schema(
     deviceToken: {
       type: String,
     },
+    phoneNumber: {
+      type: String,
+      trim: true,
+    },
+    countryCode: {
+      type: String,
+      trim: true,
+    },
     timeZone: {
       type: String,
     },
@@ -53,6 +61,13 @@ const userSchema = new Schema(
       default: false,
     },
     socialId: {
+      type: String,
+    },
+    provider: {
+      type: String,
+      enum: ["google", "apple"],
+    },
+    providerId: {
       type: String,
     },
     jti: {
@@ -95,6 +110,7 @@ const userSchema = new Schema(
 );
 
 userSchema.index({ location: "2dsphere" });
+userSchema.index({ email: 1, provider: 1 });
 
 const User = mongoose.model("User", userSchema);
 
