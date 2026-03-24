@@ -266,14 +266,14 @@ const forgetPassword = async (req) => {
     user.otpExpiry = helper.addMinutesToCurrentTime(10);
     user.isOtpVerified = false;
     await user.save();
-    if (email) {
-      await sendMessage.sendEmail({
-        userEmail: email,
-        subject: "Password Reset Request",
-        text: `Your OTP for password reset is ${otp}`,
-        html: forgetpassword(otp),
-      });
-    }
+
+    const emailLower = email.toLowerCase();
+    await sendMessage.sendEmail({
+      userEmail: emailLower,
+      subject: "Password Reset Request",
+      text: `Your OTP for password reset is ${otp}`,
+      html: forgetpassword(otp),
+    });
     return;
   } catch (error) {
     throw error;
