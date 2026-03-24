@@ -4,6 +4,26 @@ import { forgetpassword, verifyAccount } from "../utils/email.template.js";
 import { helper } from "../utils/helper.js";
 import { sendMessage } from "../utils/sendMessage.js";
 import { subscriptionStatusType } from "../utils/enum.js";
+import {
+  normalizeDeviceType,
+  normalizeLanguage,
+} from "../utils/userNormalize.js";
+
+const GENDER_MAP = {
+  male: 1,
+  female: 2,
+  other: 3,
+  Male: 1,
+  Female: 2,
+  Other: 3,
+};
+
+const normalizeGender = (value) => {
+  if (value == null) return undefined;
+  if (typeof value === "number" && [1, 2, 3].includes(value)) return value;
+  if (typeof value === "string") return GENDER_MAP[value];
+  return undefined;
+};
 
 export const getUserById = async (id) => {
   return await User.findById(id);
@@ -34,6 +54,17 @@ const registerUser = async (req) => {
     const lowerCaseEmail = email.toLowerCase();
     const existingUser = await getUserByEmail(lowerCaseEmail);
 
+    const normalizedDeviceType = normalizeDeviceType(deviceType);
+    if (normalizedDeviceType == null) {
+      throw new Error("deviceType must be 1 (iOS), 2 (Android), or common strings like ios/android/mobile.");
+    }
+    const normalizedLanguage = normalizeLanguage(language);
+    if (!normalizedLanguage) {
+      throw new Error(
+        "Invalid language. Use English, Hindi, Punjabi, etc., or codes: en, hi, pa, ur, fa, fr, es."
+      );
+    }
+
     // CASE 1: User exists and is verified → Block
     if (existingUser && existingUser.isVerified) {
       throw new Error("User already exists with this email.");
@@ -44,7 +75,7 @@ const registerUser = async (req) => {
       const otp = helper.generateOtp(6);
       existingUser.otp = otp;
       existingUser.otpExpiry = helper.addMinutesToCurrentTime(10);
-      existingUser.deviceType = deviceType;
+      existingUser.deviceType = normalizedDeviceType;
       existingUser.deviceToken = deviceToken;
       if (phoneNumber !== undefined) existingUser.phoneNumber = phoneNumber;
       if (countryCode !== undefined) existingUser.countryCode = countryCode;
@@ -66,15 +97,20 @@ const registerUser = async (req) => {
     // CASE 3: New user → Proceed with registration
     const hashedPassword = await helper.hashPassword(password);
 
+    const normalizedGender =
+      gender !== undefined && gender !== null
+        ? normalizeGender(gender)
+        : undefined;
+
     const newUser = new User({
       email: lowerCaseEmail,
       password: hashedPassword,
-      deviceType,
+      deviceType: normalizedDeviceType,
       deviceToken,
       age,
-      gender,
+      ...(normalizedGender != null ? { gender: normalizedGender } : {}),
       userName,
-      language,
+      language: normalizedLanguage,
       phoneNumber,
       countryCode,
     });
@@ -121,6 +157,11 @@ const socialLogin = async (req) => {
     } = req.body;
 
     const lowerCaseEmail = email.toLowerCase();
+    const normalizedDeviceType = normalizeDeviceType(deviceType);
+    if (normalizedDeviceType == null) {
+      throw new Error("deviceType must be 1 (iOS), 2 (Android), or common strings like ios/android/mobile.");
+    }
+
     let user = await User.findOne({
       email: lowerCaseEmail,
       role: { $in: [1, 2] },
@@ -144,7 +185,7 @@ const socialLogin = async (req) => {
       if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
       if (countryCode !== undefined) user.countryCode = countryCode;
 
-      user.deviceType = deviceType;
+      user.deviceType = normalizedDeviceType;
       user.deviceToken = deviceToken;
       user.isVerified = true;
       user.socialId = providerId;
@@ -161,7 +202,7 @@ const socialLogin = async (req) => {
         profileImage: profileImage || undefined,
         phoneNumber: phoneNumber || undefined,
         countryCode: countryCode || undefined,
-        deviceType,
+        deviceType: normalizedDeviceType,
         deviceToken,
         isVerified: true,
       });
@@ -217,14 +258,23 @@ const loginUser = async (req) => {
       throw new Error("Invalid credentials.");
     }
 
+    const normalizedDeviceType = normalizeDeviceType(deviceType);
+    if (normalizedDeviceType == null) {
+      throw new Error("deviceType must be 1 (iOS), 2 (Android), or common strings like ios/android/mobile.");
+    }
+
     const jti = helper.generateRandomJti(16);
-    user.jti = jti;
-    user.deviceType = deviceType;
-    user.deviceToken = deviceToken;
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        jti,
+        deviceType: normalizedDeviceType,
+        deviceToken,
+      },
+    });
 
-    await user.save();
-
-    const userObject = user.toObject();
+    const userObject = (
+      await User.findById(user._id).lean()
+    );
 
     const payload = {
       _id: userObject._id,
@@ -262,10 +312,14 @@ const forgetPassword = async (req) => {
     //   );
     // }
     const otp = helper.generateOtp(6);
-    user.otp = otp;
-    user.otpExpiry = helper.addMinutesToCurrentTime(10);
-    user.isOtpVerified = false;
-    await user.save();
+    const otpExpiry = helper.addMinutesToCurrentTime(10);
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        otp,
+        otpExpiry,
+        isOtpVerified: false,
+      },
+    });
 
     const emailLower = email.toLowerCase();
     await sendMessage.sendEmail({
@@ -289,7 +343,7 @@ const verifyOtp = async (req) => {
       throw new Error("User not found.");
     }
 
-    if (user.otp !== otp) {
+    if (String(user.otp) !== String(otp)) {
       throw new Error("Invalid OTP. Please try again.");
     }
 
@@ -297,22 +351,30 @@ const verifyOtp = async (req) => {
       throw new Error("OTP has expired. Please request a new one.");
     }
 
-    user.isOtpVerified = true;
-    user.otp = null;
-    user.otpExpiry = null;
-    user.deviceType = deviceType;
-    user.deviceToken = deviceToken;
-
+    const normalizedDeviceType = normalizeDeviceType(deviceType);
     const jti = helper.generateRandomJti(16);
-    user.jti = jti;
 
-    if (Number(type) === 1) {
-      user.isVerified = true;
+    const $set = {
+      isOtpVerified: true,
+      otp: null,
+      otpExpiry: null,
+      jti,
+    };
+
+    if (normalizedDeviceType != null) {
+      $set.deviceType = normalizedDeviceType;
+    }
+    if (deviceToken != null && deviceToken !== "") {
+      $set.deviceToken = deviceToken;
     }
 
-    await user.save();
+    if (Number(type) === 1) {
+      $set.isVerified = true;
+    }
 
-    const userObject = user.toObject();
+    await User.findByIdAndUpdate(user._id, { $set });
+
+    const userObject = await User.findById(user._id).lean();
     const {
       password,
       deviceType: _dt,
@@ -361,7 +423,7 @@ const setPassowrd = async (req) => {
       user = await getUserByEmail(email.toLowerCase());
     }
     if (!user.isOtpVerified) {
-      throw new Error("Otp is not verifed");
+      throw new Error("OTP is not verified. Complete OTP verification first.");
     }
     const comparePassword = await helper.verifyPassword(
       password,
@@ -371,27 +433,13 @@ const setPassowrd = async (req) => {
       throw new Error("new password is not same as old");
     }
     const hashedPassword = await helper.hashPassword(password);
-    (user.password = hashedPassword), await user.save();
+    await User.findByIdAndUpdate(user._id, {
+      $set: { password: hashedPassword },
+    });
     return;
   } catch (error) {
     throw error;
   }
-};
-
-const GENDER_MAP = {
-  male: 1,
-  female: 2,
-  other: 3,
-  Male: 1,
-  Female: 2,
-  Other: 3,
-};
-
-const normalizeGender = (value) => {
-  if (value == null) return undefined;
-  if (typeof value === "number" && [1, 2, 3].includes(value)) return value;
-  if (typeof value === "string") return GENDER_MAP[value];
-  return undefined;
 };
 
 const updateUser = async (req) => {
@@ -441,7 +489,15 @@ const updateUser = async (req) => {
     if (profileImage !== undefined) user.profileImage = profileImage;
     const normalizedGender = normalizeGender(gender);
     if (normalizedGender) user.gender = normalizedGender;
-    if (language) user.language = language;
+    if (language) {
+      const lang = normalizeLanguage(language);
+      if (!lang) {
+        throw new Error(
+          "Invalid language. Use English, Hindi, Punjabi, etc., or codes: en, hi, pa, ur, fa, fr, es."
+        );
+      }
+      user.language = lang;
+    }
     if (age != null) user.age = age;
     if (address !== undefined) user.address = address;
     if (timeZone !== undefined) user.timeZone = timeZone;
@@ -538,8 +594,9 @@ const changePassword = async (req) => {
     }
 
     const hashedPassword = await helper.hashPassword(newPassword);
-    user.password = hashedPassword;
-    await user.save();
+    await User.findByIdAndUpdate(user._id, {
+      $set: { password: hashedPassword },
+    });
     return;
   } catch (error) {
     throw error;

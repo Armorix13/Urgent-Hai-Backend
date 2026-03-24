@@ -15,10 +15,12 @@ const registerUserSchema = {
       "any.required": "Name is required.",
       "string.empty": "Name cannot be empty.",
     }),
-    deviceType: Joi.number().valid(1, 2).required().messages({
-      "any.only": "Device type must be either Android (1) or iOS (2).",
-      "any.required": "Device type is required.",
-    }),
+    deviceType: Joi.alternatives()
+      .try(Joi.number().valid(1, 2), Joi.string().trim().lowercase())
+      .required()
+      .messages({
+        "any.required": "Device type is required.",
+      }),
     age: Joi.number().required().messages({
       "any.required": "age is required.",
     }),
@@ -31,23 +33,31 @@ const registerUserSchema = {
     countryCode: Joi.string().trim().max(10).optional().messages({
       "string.max": "Country code must be at most 10 characters.",
     }),
-    gender: Joi.string().valid(1, 2, 3).optional().messages({
-      "any.only": 'Gender must be one of "male", "female", or "other".',
-    }),
-    language: Joi.string()
-      .valid(
-        "Punjabi",
-        "Urdu",
-        "Faarsi",
-        "Hindi",
-        "English",
-        "Spanish",
-        "French"
+    gender: Joi.alternatives()
+      .try(
+        Joi.number().valid(1, 2, 3),
+        Joi.string().valid("male", "female", "other", "Male", "Female", "Other")
+      )
+      .optional()
+      .messages({
+        "any.only": 'Gender must be 1/2/3 or "male"/"female"/"other".',
+      }),
+    language: Joi.alternatives()
+      .try(
+        Joi.string().valid(
+          "Punjabi",
+          "Urdu",
+          "Faarsi",
+          "Hindi",
+          "English",
+          "Spanish",
+          "French"
+        ),
+        Joi.string().valid("en", "hi", "pa", "ur", "fa", "fr", "es")
       )
       .required()
       .messages({
-        "any.only":
-          'Language must be one of "Punjabi", "Urdu", "Faarsi", "Hindi", "English", "Spanish", or "French".',
+        "any.required": "Language is required.",
       }),
   }),
 };
@@ -62,10 +72,12 @@ const loginUserSchema = {
         "string.min": "Password must be at least 8 characters long.",
         "any.required": "Password is required.",
       }),
-      deviceType: Joi.number().valid(1, 2).required().messages({
-        "any.only": "Device type must be either Android (1) or iOS (2).",
-        "any.required": "Device type is required.",
-      }),
+      deviceType: Joi.alternatives()
+        .try(Joi.number().valid(1, 2), Joi.string().trim().lowercase())
+        .required()
+        .messages({
+          "any.required": "Device type is required.",
+        }),
       deviceToken: Joi.string().required().messages({
         "any.required": "Device Token is required.",
       }),
@@ -83,18 +95,27 @@ const forgetPasswordSchema = {
 };
 
 const verifyOtpSchema = {
-  body: Joi.object().keys({
-    type: Joi.number().required().messages({
-      "any.required": "type is required.",
-    }),
-    otp: Joi.number().required().messages({
-      "any.required": "OTP is required.",
-    }),
-    email: Joi.string().email().required().messages({
-      "string.email": "Please provide a valid email address.",
-      "any.required": "Email is required.",
-    }),
-  }),
+  body: Joi.object()
+    .keys({
+      type: Joi.number().required().messages({
+        "any.required": "type is required.",
+      }),
+      otp: Joi.number().required().messages({
+        "any.required": "OTP is required.",
+      }),
+      email: Joi.string().email().required().messages({
+        "string.email": "Please provide a valid email address.",
+        "any.required": "Email is required.",
+      }),
+      deviceType: Joi.alternatives()
+        .try(
+          Joi.number().valid(1, 2),
+          Joi.string().trim().lowercase()
+        )
+        .optional(),
+      deviceToken: Joi.string().optional().allow(""),
+    })
+    .options({ stripUnknown: true }),
 };
 
 const updateUserSchema = {
@@ -142,20 +163,23 @@ const updateUserSchema = {
     countryCode: Joi.string().trim().max(10).optional().messages({
       "string.max": "Country code must be at most 10 characters.",
     }),
-    language: Joi.string()
-      .valid(
-        "Punjabi",
-        "Urdu",
-        "Faarsi",
-        "Hindi",
-        "English",
-        "Spanish",
-        "French"
+    language: Joi.alternatives()
+      .try(
+        Joi.string().valid(
+          "Punjabi",
+          "Urdu",
+          "Faarsi",
+          "Hindi",
+          "English",
+          "Spanish",
+          "French"
+        ),
+        Joi.string().valid("en", "hi", "pa", "ur", "fa", "fr", "es")
       )
       .optional()
       .messages({
         "any.only":
-          'Language must be one of "Punjabi", "Urdu", "Faarsi", "Hindi", "English", "Spanish", or "French".',
+          'Language must be a supported code (e.g. en, hi) or full name: Punjabi, Urdu, Faarsi, Hindi, English, Spanish, French.',
       }),
   }),
 };
@@ -220,10 +244,12 @@ const socialLoginSchema = {
     profileImage: Joi.string().max(500).allow("", null).optional().messages({
       "string.max": "Profile image URL is too long.",
     }),
-    deviceType: Joi.number().valid(1, 2).required().messages({
-      "any.only": "Device type must be Android (1) or iOS (2).",
-      "any.required": "Device type is required.",
-    }),
+    deviceType: Joi.alternatives()
+      .try(Joi.number().valid(1, 2), Joi.string().trim().lowercase())
+      .required()
+      .messages({
+        "any.required": "Device type is required.",
+      }),
     deviceToken: Joi.string().required().messages({
       "any.required": "Device token is required.",
     }),
