@@ -83,11 +83,27 @@ const sendEmail = async ({ userEmail, subject, text, html }) => {
     html,
   };
 
-  await withTimeout(
-    transporter.sendMail(mailOptions),
-    EMAIL_SEND_TIMEOUT_MS,
-    `Email send timed out after ${EMAIL_SEND_TIMEOUT_MS / 1000}s. Check SMTP settings, firewall, and network.`
-  );
+  try {
+    await withTimeout(
+      transporter.sendMail(mailOptions),
+      EMAIL_SEND_TIMEOUT_MS,
+      `Email send timed out after ${EMAIL_SEND_TIMEOUT_MS / 1000}s. On cloud hosts try SMTP_PORT=587 and SMTP_SECURE=false.`
+    );
+  } catch (err) {
+    const raw = (err && err.message) || String(err);
+    const lower = raw.toLowerCase();
+    if (
+      lower.includes("connection timeout") ||
+      lower.includes("etimedout") ||
+      lower.includes("econnrefused") ||
+      lower.includes("greeting never received")
+    ) {
+      throw new Error(
+        "Email server connection failed. On Render/production: use SMTP_PORT=587, SMTP_SECURE=false, SMTP_HOST=smtp.gmail.com, and a Gmail App Password. Outbound port 465 is often blocked."
+      );
+    }
+    throw err;
+  }
 };
 
 export const sendMessage = {

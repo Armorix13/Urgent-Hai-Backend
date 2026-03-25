@@ -5,8 +5,30 @@
  * @param {Object} res - The Express response object.
  * @param {function} next - The next middleware function.
  */
+function isMongoConnectionError(err) {
+    if (!err || typeof err !== "object") return false;
+    const name = err.name || "";
+    const msg = (err.message || "").toLowerCase();
+    return (
+        name === "MongoServerSelectionError" ||
+        name === "MongoNetworkError" ||
+        name === "MongoTimeoutError" ||
+        msg.includes("server selection timed out") ||
+        msg.includes("econnrefused") ||
+        msg.includes("enotfound") ||
+        msg.includes("querysrv")
+    );
+}
+
 function errorHandler(err, req, res, next) {
     switch (true) {
+        case typeof err === 'object' && isMongoConnectionError(err):
+            return res.status(503).json({
+                status: 503,
+                message:
+                    "Database connection failed. On Atlas: Network Access → allow 0.0.0.0/0 (or Render IPs). Verify MONGO_URI on the server matches Atlas (not localhost).",
+                data: null,
+            });
         case typeof err === 'string':
             // Custom application error
             const is404 = err.toLowerCase().endsWith('not found');
