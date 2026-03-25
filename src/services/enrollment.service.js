@@ -19,31 +19,48 @@ const enroll = async (req) => {
       throw new Error("Course is not available for enrollment");
     }
 
+    const now = new Date();
     const existing = await Enrollment.findOne({ user: userId, course: courseId });
-    if (existing && existing.isActive) {
+    const stillValid =
+      existing &&
+      existing.isActive &&
+      (existing.expiresAt == null || existing.expiresAt > now);
+
+    if (stillValid) {
       throw new Error("Already enrolled in this course");
     }
 
-    const enrollmentData = {
-      user: userId,
-      course: courseId,
-      enrollmentType: course.courseType === 1 ? "paid" : "free",
-    };
+    const paymentBlock =
+      course.courseType === 1
+        ? {
+            amount: course.price,
+            transactionId: transactionId || null,
+            paymentMethod: paymentMethod || null,
+            paymentDate: new Date(),
+          }
+        : undefined;
 
-    if (course.courseType === 1) {
-      enrollmentData.paymentDetails = {
-        amount: course.price,
-        transactionId: transactionId || null,
-        paymentMethod: paymentMethod || null,
-        paymentDate: new Date(),
+    let enrollment;
+    if (existing) {
+      existing.isActive = true;
+      existing.expiresAt = null;
+      existing.enrollmentType = course.courseType === 1 ? "paid" : "free";
+      if (paymentBlock) existing.paymentDetails = paymentBlock;
+      await existing.save();
+      enrollment = existing;
+    } else {
+      const enrollmentData = {
+        user: userId,
+        course: courseId,
+        enrollmentType: course.courseType === 1 ? "paid" : "free",
+        expiresAt: null,
       };
+      if (paymentBlock) enrollmentData.paymentDetails = paymentBlock;
+      enrollment = await Enrollment.create(enrollmentData);
+      await Course.findByIdAndUpdate(courseId, {
+        $inc: { enrollmentCount: 1 },
+      });
     }
-
-    const enrollment = await Enrollment.create(enrollmentData);
-
-    await Course.findByIdAndUpdate(courseId, {
-      $inc: { enrollmentCount: 1 },
-    });
 
     const populated = await Enrollment.findById(enrollment._id)
       .populate("course", "title description thumbnail duration level category courseType price courseContent")

@@ -1,11 +1,5 @@
 import mongoose from "mongoose";
 
-const addMonths = (date, months) => {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + months);
-  return d;
-};
-
 const enrollmentSchema = new mongoose.Schema(
   {
     user: {
@@ -22,11 +16,10 @@ const enrollmentSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    /** null = lifetime access (no expiry) */
     expiresAt: {
       type: Date,
-      default: function () {
-        return addMonths(new Date(), 3);
-      },
+      default: null,
     },
     isActive: {
       type: Boolean,
@@ -66,7 +59,7 @@ enrollmentSchema.statics.getUserEnrollments = async function (userId) {
   return await this.find({
     user: userId,
     isActive: true,
-    expiresAt: { $gt: now },
+    $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
   })
     .populate({
       path: "course",
@@ -79,6 +72,7 @@ enrollmentSchema.statics.getUserEnrollments = async function (userId) {
 
 enrollmentSchema.pre("save", async function (next) {
   if (this.isNew) {
+    this.expiresAt = null;
     try {
       const Course = mongoose.model("Course");
       const course = await Course.findById(this.course);

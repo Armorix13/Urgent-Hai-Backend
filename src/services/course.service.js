@@ -1,8 +1,60 @@
 import Course from "../models/course.model.js";
+import CourseVideo from "../models/courseVideo.model.js";
+import {
+  computeCourseWatchAccess,
+  applyWatchPolicyToCourse,
+  buildWatchContext,
+} from "../utils/courseAccess.js";
+
+/** Normalize CourseVideo doc for JSON (video_url → videoUrl). */
+const normalizeVideoForClient = (doc) => {
+  if (!doc) return doc;
+  const o = { ...doc };
+  if (o.video_url != null) {
+    o.videoUrl = o.video_url;
+    delete o.video_url;
+  }
+  return o;
+};
+
+const sanitizeCoursePayload = (body) => {
+  if (!body || typeof body !== "object") return body;
+  const next = { ...body };
+  if (next.thumbnail !== undefined) {
+    const t = next.thumbnail;
+    if (t === "" || (typeof t === "string" && !t.trim())) {
+      next.thumbnail = null;
+    }
+  }
+  return next;
+};
+
+const fetchVideosForCourse = async (courseId) => {
+  const rows = await CourseVideo.getVideosByCourseId(courseId);
+  return rows.map(normalizeVideoForClient);
+};
+
+/** Batch: { courseIdStr: videos[] } */
+const fetchVideosGroupedByCourseIds = async (courseIds) => {
+  if (!courseIds.length) return new Map();
+  const list = await CourseVideo.find({
+    courseId: { $in: courseIds },
+    isActive: true,
+  })
+    .sort({ order: 1 })
+    .lean();
+  const map = new Map();
+  for (const v of list) {
+    const key = v.courseId.toString();
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(normalizeVideoForClient(v));
+  }
+  return map;
+};
 
 const addCourse = async (req) => {
   try {
-    const body = req.body;
+    const body = sanitizeCoursePayload(req.body);
     if (body.courseType === 1 && (body.price == null || body.price < 0)) {
       throw new Error("Price is required for paid courses");
     }
@@ -47,7 +99,29 @@ const getCoursesWithPagination = async (req) => {
       isActive: isActive !== undefined ? isActive === "true" : null,
     });
 
-    return result;
+    let courses = result.courses;
+    if (courses.length) {
+      const ids = courses.map((c) => c._id);
+      const ctx = await buildWatchContext(req, ids);
+      const grouped = await fetchVideosGroupedByCourseIds(ids);
+      courses = courses.map((c) => {
+        const videos = grouped.get(c._id.toString()) ?? [];
+        const base = {
+          ...c,
+          videoCount: videos.length,
+          videos,
+        };
+        const access = computeCourseWatchAccess(base, {
+          userId: ctx.userId,
+          hasSubscription: ctx.hasSubscription,
+          purchasedCourseIds: ctx.purchasedSet,
+          isAdmin: ctx.isAdmin,
+        });
+        return applyWatchPolicyToCourse(base, access);
+      });
+    }
+
+    return { ...result, courses };
   } catch (err) {
     throw err;
   }
@@ -66,7 +140,20 @@ const getCourseById = async (req) => {
       throw new Error("Course not found");
     }
 
-    return course;
+    const videos = await fetchVideosForCourse(id);
+    const ctx = await buildWatchContext(req, [course._id]);
+    const base = {
+      ...course,
+      videoCount: videos.length,
+      videos,
+    };
+    const access = computeCourseWatchAccess(base, {
+      userId: ctx.userId,
+      hasSubscription: ctx.hasSubscription,
+      purchasedCourseIds: ctx.purchasedSet,
+      isAdmin: ctx.isAdmin,
+    });
+    return applyWatchPolicyToCourse(base, access);
   } catch (err) {
     throw err;
   }
@@ -87,7 +174,25 @@ const getSimilarCourses = async (req) => {
       course.category,
       limit
     );
-    return similar;
+    if (!similar.length) return similar;
+    const ids = similar.map((c) => c._id);
+    const ctx = await buildWatchContext(req, ids);
+    const grouped = await fetchVideosGroupedByCourseIds(ids);
+    return similar.map((c) => {
+      const videos = grouped.get(c._id.toString()) ?? [];
+      const base = {
+        ...c,
+        videoCount: videos.length,
+        videos,
+      };
+      const access = computeCourseWatchAccess(base, {
+        userId: ctx.userId,
+        hasSubscription: ctx.hasSubscription,
+        purchasedCourseIds: ctx.purchasedSet,
+        isAdmin: ctx.isAdmin,
+      });
+      return applyWatchPolicyToCourse(base, access);
+    });
   } catch (err) {
     throw err;
   }
@@ -96,7 +201,7 @@ const getSimilarCourses = async (req) => {
 const updateCourse = async (req) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = sanitizeCoursePayload(req.body);
 
     const course = await Course.findByIdAndUpdate(id, updates, { new: true });
 
