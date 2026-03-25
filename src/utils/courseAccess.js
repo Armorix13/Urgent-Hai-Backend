@@ -2,6 +2,12 @@ import Subscription from "../models/subscription.model.js";
 import Enrollment from "../models/enrollment.model.js";
 import { subscriptionStatusType, roleType } from "./enum.js";
 
+/** Full access for course list/detail, similar, and enrollment payloads (videos unredacted). */
+export const FULL_LISTING_ACCESS = Object.freeze({
+  canWatchFull: true,
+  reason: "listing",
+});
+
 export async function userHasActiveSubscription(userId) {
   if (!userId) return false;
   const sub = await Subscription.findOne({

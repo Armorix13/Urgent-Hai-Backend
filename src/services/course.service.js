@@ -4,9 +4,8 @@ import {
   fetchVideosGroupedByCourseIds,
 } from "../utils/courseVideo.util.js";
 import {
-  computeCourseWatchAccess,
   applyWatchPolicyToCourse,
-  buildWatchContext,
+  FULL_LISTING_ACCESS,
 } from "../utils/courseAccess.js";
 
 const sanitizeCoursePayload = (body) => {
@@ -71,7 +70,6 @@ const getCoursesWithPagination = async (req) => {
     let courses = result.courses;
     if (courses.length) {
       const ids = courses.map((c) => c._id);
-      const ctx = await buildWatchContext(req, ids);
       const grouped = await fetchVideosGroupedByCourseIds(ids);
       courses = courses.map((c) => {
         const videos = grouped.get(c._id.toString()) ?? [];
@@ -80,13 +78,7 @@ const getCoursesWithPagination = async (req) => {
           videoCount: videos.length,
           videos,
         };
-        const access = computeCourseWatchAccess(base, {
-          userId: ctx.userId,
-          hasSubscription: ctx.hasSubscription,
-          purchasedCourseIds: ctx.purchasedSet,
-          isAdmin: ctx.isAdmin,
-        });
-        return applyWatchPolicyToCourse(base, access);
+        return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
       });
     }
 
@@ -115,19 +107,12 @@ const getCourseById = async (req) => {
     }
 
     const videos = await fetchVideosForCourse(id);
-    const ctx = await buildWatchContext(req, [course._id]);
     const base = {
       ...course,
       videoCount: videos.length,
       videos,
     };
-    const access = computeCourseWatchAccess(base, {
-      userId: ctx.userId,
-      hasSubscription: ctx.hasSubscription,
-      purchasedCourseIds: ctx.purchasedSet,
-      isAdmin: ctx.isAdmin,
-    });
-    return applyWatchPolicyToCourse(base, access);
+    return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
   } catch (err) {
     throw err;
   }
@@ -150,7 +135,6 @@ const getSimilarCourses = async (req) => {
     );
     if (!similar.length) return similar;
     const ids = similar.map((c) => c._id);
-    const ctx = await buildWatchContext(req, ids);
     const grouped = await fetchVideosGroupedByCourseIds(ids);
     return similar.map((c) => {
       const videos = grouped.get(c._id.toString()) ?? [];
@@ -159,13 +143,7 @@ const getSimilarCourses = async (req) => {
         videoCount: videos.length,
         videos,
       };
-      const access = computeCourseWatchAccess(base, {
-        userId: ctx.userId,
-        hasSubscription: ctx.hasSubscription,
-        purchasedCourseIds: ctx.purchasedSet,
-        isAdmin: ctx.isAdmin,
-      });
-      return applyWatchPolicyToCourse(base, access);
+      return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
     });
   } catch (err) {
     throw err;

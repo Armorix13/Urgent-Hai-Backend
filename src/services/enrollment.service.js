@@ -5,13 +5,20 @@ import {
   fetchVideosForCourse,
   fetchVideosGroupedByCourseIds,
 } from "../utils/courseVideo.util.js";
+import {
+  applyWatchPolicyToCourse,
+  FULL_LISTING_ACCESS,
+} from "../utils/courseAccess.js";
+
+const enrichCourseWithVideosAndAccess = (course, videos) =>
+  applyWatchPolicyToCourse(attachVideosToCourseLean(course, videos), FULL_LISTING_ACCESS);
 
 const enrichEnrollmentWithVideos = async (enrollment) => {
   if (!enrollment?.course?._id) return enrollment;
   const videos = await fetchVideosForCourse(enrollment.course._id);
   return {
     ...enrollment,
-    course: attachVideosToCourseLean(enrollment.course, videos),
+    course: enrichCourseWithVideosAndAccess(enrollment.course, videos),
   };
 };
 
@@ -25,7 +32,7 @@ const enrichEnrollmentsListWithVideos = async (enrollments) => {
     const videos = grouped.get(e.course._id.toString()) ?? [];
     return {
       ...e,
-      course: attachVideosToCourseLean(e.course, videos),
+      course: enrichCourseWithVideosAndAccess(e.course, videos),
     };
   });
 };
