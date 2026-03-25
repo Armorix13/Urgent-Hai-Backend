@@ -121,7 +121,12 @@ const getCoursesWithPagination = async (req) => {
       });
     }
 
-    return { ...result, courses };
+    const totalVideosOnPage = courses.reduce(
+      (sum, c) => sum + (c.videosCount ?? c.videoCount ?? 0),
+      0
+    );
+
+    return { ...result, courses, totalVideosOnPage };
   } catch (err) {
     throw err;
   }

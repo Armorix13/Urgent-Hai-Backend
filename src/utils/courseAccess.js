@@ -85,6 +85,7 @@ export function redactCourseContentEmbedded(items, canWatchFull) {
 export function applyWatchPolicyToCourse(course, access) {
   const { canWatchFull, reason } = access;
   const videos = redactVideos(course.videos, canWatchFull);
+  const fullCount = Array.isArray(videos) ? videos.length : 0;
   const courseContent = redactCourseContentEmbedded(
     course.courseContent,
     canWatchFull
@@ -93,6 +94,8 @@ export function applyWatchPolicyToCourse(course, access) {
     ...course,
     videos,
     courseContent,
+    videoCount: fullCount,
+    videosCount: fullCount,
     access: {
       canWatchFull,
       reason,
