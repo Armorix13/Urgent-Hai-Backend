@@ -20,6 +20,17 @@ function isMongoConnectionError(err) {
     );
 }
 
+/** jsonwebtoken: malformed, expired, not active yet */
+function isJwtAuthError(err) {
+    if (!err || typeof err !== "object") return false;
+    const n = err.name || "";
+    return (
+        n === "JsonWebTokenError" ||
+        n === "TokenExpiredError" ||
+        n === "NotBeforeError"
+    );
+}
+
 function errorHandler(err, req, res, next) {
     switch (true) {
         case typeof err === 'object' && isMongoConnectionError(err):
@@ -27,6 +38,12 @@ function errorHandler(err, req, res, next) {
                 status: 503,
                 message:
                     "Database connection failed. On Atlas: Network Access → allow 0.0.0.0/0 (or Render IPs). Verify MONGO_URI on the server matches Atlas (not localhost).",
+                data: null,
+            });
+        case typeof err === 'object' && isJwtAuthError(err):
+            return res.status(401).json({
+                status: 401,
+                message: err.message || 'Unauthorized',
                 data: null,
             });
         case typeof err === 'string':
@@ -37,8 +54,8 @@ function errorHandler(err, req, res, next) {
         case typeof err === 'object' && err.name === 'CastError':
             // Mongoose CastError (e.g., invalid ObjectId)
             return res.status(404).json({ status: 404, message: 'Not Found', data: null });
-        case typeof err === 'object' && err.message.toLowerCase().endsWith('jwt expired'):
-            // JWT token expired error
+        case typeof err === 'object' && err.message && err.message.toLowerCase().endsWith('jwt expired'):
+            // Legacy: plain Error with jwt expired message (if not already JsonWebTokenError)
             return res.status(401).json({ status: 401, message: err.message, data: null });
         case typeof err === 'object':
             // Other custom object-based error

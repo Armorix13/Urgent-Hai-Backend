@@ -1,5 +1,34 @@
 import Enrollment from "../models/enrollment.model.js";
 import Course from "../models/course.model.js";
+import {
+  attachVideosToCourseLean,
+  fetchVideosForCourse,
+  fetchVideosGroupedByCourseIds,
+} from "../utils/courseVideo.util.js";
+
+const enrichEnrollmentWithVideos = async (enrollment) => {
+  if (!enrollment?.course?._id) return enrollment;
+  const videos = await fetchVideosForCourse(enrollment.course._id);
+  return {
+    ...enrollment,
+    course: attachVideosToCourseLean(enrollment.course, videos),
+  };
+};
+
+const enrichEnrollmentsListWithVideos = async (enrollments) => {
+  if (!enrollments?.length) return enrollments;
+  const ids = enrollments.map((e) => e.course?._id).filter(Boolean);
+  if (!ids.length) return enrollments;
+  const grouped = await fetchVideosGroupedByCourseIds(ids);
+  return enrollments.map((e) => {
+    if (!e.course?._id) return e;
+    const videos = grouped.get(e.course._id.toString()) ?? [];
+    return {
+      ...e,
+      course: attachVideosToCourseLean(e.course, videos),
+    };
+  });
+};
 
 const enroll = async (req) => {
   try {
@@ -63,10 +92,13 @@ const enroll = async (req) => {
     }
 
     const populated = await Enrollment.findById(enrollment._id)
-      .populate("course", "title description thumbnail duration level category courseType price courseContent")
+      .populate(
+        "course",
+        "title description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
+      )
       .lean();
 
-    return populated;
+    return enrichEnrollmentWithVideos(populated);
   } catch (err) {
     throw err;
   }
@@ -76,7 +108,7 @@ const getUserEnrollments = async (req) => {
   try {
     const userId = req.userId;
     const enrollments = await Enrollment.getUserEnrollments(userId);
-    return enrollments;
+    return enrichEnrollmentsListWithVideos(enrollments);
   } catch (err) {
     throw err;
   }
@@ -88,7 +120,10 @@ const getEnrollmentById = async (req) => {
     const userId = req.userId;
 
     const enrollment = await Enrollment.findById(id)
-      .populate("course", "title description thumbnail duration level category courseType price courseContent")
+      .populate(
+        "course",
+        "title description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
+      )
       .lean();
 
     if (!enrollment) {
@@ -99,7 +134,7 @@ const getEnrollmentById = async (req) => {
       throw new Error("Unauthorized to view this enrollment");
     }
 
-    return enrollment;
+    return enrichEnrollmentWithVideos(enrollment);
   } catch (err) {
     throw err;
   }
@@ -132,10 +167,13 @@ const updateProgress = async (req) => {
     await enrollment.save();
 
     const populated = await Enrollment.findById(id)
-      .populate("course", "title description thumbnail duration level category courseType price courseContent")
+      .populate(
+        "course",
+        "title description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
+      )
       .lean();
 
-    return populated;
+    return enrichEnrollmentWithVideos(populated);
   } catch (err) {
     throw err;
   }

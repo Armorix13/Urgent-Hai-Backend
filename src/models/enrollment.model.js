@@ -64,7 +64,7 @@ enrollmentSchema.statics.getUserEnrollments = async function (userId) {
     .populate({
       path: "course",
       select:
-        "title description thumbnail duration level category courseType price courseContent isDeleted",
+        "title description thumbnail duration level category courseType price courseContent isDeleted tags benefits prerequisites learningOutcomes isActive rating enrollmentCount",
     })
     .sort({ enrolledAt: -1 })
     .lean();

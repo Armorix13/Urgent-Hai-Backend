@@ -5,17 +5,7 @@ import {
   computeCourseWatchAccess,
   redactVideos,
 } from "../utils/courseAccess.js";
-
-const normalizeVideoForClient = (doc) => {
-  if (!doc) return doc;
-  const o = doc.toObject ? doc.toObject() : { ...doc };
-  const plain = { ...o };
-  const url = plain.videoUrl ?? plain.video_url;
-  delete plain.video_url;
-  plain.videoUrl =
-    url != null && String(url).trim() !== "" ? String(url).trim() : null;
-  return plain;
-};
+import { normalizeVideoForClient } from "../utils/courseVideo.util.js";
 
 const addCourseVideo = async (req) => {
   try {
