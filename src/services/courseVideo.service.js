@@ -10,10 +10,10 @@ const normalizeVideoForClient = (doc) => {
   if (!doc) return doc;
   const o = doc.toObject ? doc.toObject() : { ...doc };
   const plain = { ...o };
-  if (plain.video_url != null) {
-    plain.videoUrl = plain.video_url;
-    delete plain.video_url;
-  }
+  const url = plain.videoUrl ?? plain.video_url;
+  delete plain.video_url;
+  plain.videoUrl =
+    url != null && String(url).trim() !== "" ? String(url).trim() : null;
   return plain;
 };
 

@@ -10,10 +10,9 @@ import {
 const normalizeVideoForClient = (doc) => {
   if (!doc) return doc;
   const o = { ...doc };
-  if (o.video_url != null) {
-    o.videoUrl = o.video_url;
-    delete o.video_url;
-  }
+  const url = o.videoUrl ?? o.video_url;
+  delete o.video_url;
+  o.videoUrl = url != null && String(url).trim() !== "" ? String(url).trim() : null;
   return o;
 };
 

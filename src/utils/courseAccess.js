@@ -54,7 +54,7 @@ export function computeCourseWatchAccess(course, {
   if (hasSubscription) {
     return { canWatchFull: true, reason: "subscription" };
   }
-  if (course.courseType === 2) {
+  if (Number(course.courseType) === 2) {
     return { canWatchFull: true, reason: "free_course" };
   }
   const id = course._id?.toString?.() ?? String(course._id);
@@ -101,7 +101,9 @@ export function applyWatchPolicyToCourse(course, access) {
       reason,
       requiresLogin: !canWatchFull && reason === "login_required",
       requiresSubscriptionOrPurchase:
-        course.courseType === 1 && !canWatchFull && reason !== "login_required",
+        Number(course.courseType) === 1 &&
+        !canWatchFull &&
+        reason !== "login_required",
     },
   };
 }
