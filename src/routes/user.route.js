@@ -43,6 +43,7 @@ userRoute.put(
   userController.updateUser
 );
 userRoute.get("/user-detail", authenticate, userController.getUserDetails);
+userRoute.post("/user-logout", authenticate, userController.logoutUser);
 userRoute.put(
   "/change-password",
   validate(userValidationSchemas.changePasswordSchema),

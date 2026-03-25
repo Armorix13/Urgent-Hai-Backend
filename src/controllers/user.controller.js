@@ -126,6 +126,18 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
+const logoutUser = async (req, res, next) => {
+  try {
+    await userService.logoutUser(req);
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const userController = {
   registerUser,
   loginUser,
@@ -137,4 +149,5 @@ export const userController = {
   verifyOtp,
   resetPassword,
   deleteAccount,
+  logoutUser,
 };

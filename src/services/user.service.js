@@ -619,6 +619,24 @@ const deleteAccount = async (req) => {
   }
 };
 
+/** Clears session + push targets so existing JWTs are rejected (jti mismatch) and device no longer receives notifications. */
+const logoutUser = async (req) => {
+  try {
+    const userId = req.userId;
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error("User not found.");
+    }
+    await User.findByIdAndUpdate(userId, {
+      $set: { jti: null, deviceToken: null },
+      $unset: { deviceType: "" },
+    });
+    return;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const userService = {
   registerUser,
   loginUser,
@@ -630,4 +648,5 @@ export const userService = {
   getUserDetails,
   changePassword,
   deleteAccount,
+  logoutUser,
 };
