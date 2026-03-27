@@ -7,6 +7,7 @@ import {
   applyWatchPolicyToCourse,
   FULL_LISTING_ACCESS,
 } from "../utils/courseAccess.js";
+import { attachUserCourseFlags } from "./rating.service.js";
 
 const sanitizeCoursePayload = (body) => {
   if (!body || typeof body !== "object") return body;
@@ -80,6 +81,7 @@ const getCoursesWithPagination = async (req) => {
         };
         return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
       });
+      courses = await attachUserCourseFlags(courses, req.userId);
     }
 
     const totalVideosOnPage = courses.reduce(
@@ -112,7 +114,9 @@ const getCourseById = async (req) => {
       videoCount: videos.length,
       videos,
     };
-    return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
+    const withPolicy = applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
+    const [flagged] = await attachUserCourseFlags([withPolicy], req.userId);
+    return flagged;
   } catch (err) {
     throw err;
   }
@@ -136,7 +140,7 @@ const getSimilarCourses = async (req) => {
     if (!similar.length) return similar;
     const ids = similar.map((c) => c._id);
     const grouped = await fetchVideosGroupedByCourseIds(ids);
-    return similar.map((c) => {
+    let list = similar.map((c) => {
       const videos = grouped.get(c._id.toString()) ?? [];
       const base = {
         ...c,
@@ -145,6 +149,8 @@ const getSimilarCourses = async (req) => {
       };
       return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
     });
+    list = await attachUserCourseFlags(list, req.userId);
+    return list;
   } catch (err) {
     throw err;
   }

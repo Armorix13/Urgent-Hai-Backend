@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Inderjet API",
-    "description": "Complete API collection for Inderjet Backend - All APIs (User, Category, Product, Raag, Raag Detail, Video, Gurbani, Collaborator, Suggestion, Plan, Subscription, Course, Course Video, Enrollment, Previous Result, File Upload)",
+    "description": "Complete API collection for Inderjet Backend - All APIs (User, Category, Product, Raag, Raag Detail, Video, Gurbani, Collaborator, Suggestion, Plan, Subscription, Course, Course Video, Enrollment, Rating, Previous Result, File Upload, Google Drive)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -12,6 +12,14 @@
     {
       "key": "access_token",
       "value": ""
+    },
+    {
+      "key": "drive_file_id",
+      "value": ""
+    },
+    {
+      "key": "course_id",
+      "value": "69c386622cc88cc8526b6584"
     }
   ],
   "auth": {
@@ -794,7 +802,7 @@
             "auth": { "type": "noauth" },
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/course?page=1&limit=10&search=&courseType=&category=&level=",
-            "description": "Get courses with pagination and filters"
+            "description": "Get courses with pagination and filters. With Bearer token: each course includes isEnrolled and myRating (your review). Guests: isEnrolled false, myRating null."
           }
         },
         {
@@ -928,7 +936,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/enrollment",
-            "description": "Get current user's enrollments"
+            "description": "Get current user's enrollments. Each item includes myRating: { rating, review, updatedAt } or null."
           }
         },
         {
@@ -958,6 +966,27 @@
             "method": "PUT",
             "url": "{{baseUrl}}/api/v1/enrollment/:id/cancel",
             "description": "Cancel enrollment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rating",
+      "item": [
+        {
+          "name": "Submit or update rating",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"review\": \"This is testing rating\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/rating/{{course_id}}",
+            "description": "Requires active enrollment in the course. POST again to update. Syncs course rating.average and rating.count. Use collection variable course_id or replace with real course ObjectId."
           }
         }
       ]
@@ -1047,6 +1076,71 @@
             },
             "url": "{{baseUrl}}/api/v1/file-upload",
             "description": "Upload file (image/video/audio/pdf). Field name: image. Returns url for profileImage."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Google Drive",
+      "item": [
+        {
+          "name": "Upload to Drive (form-data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    const id = json.data?.file?.fileId || json.data?.files?.[0]?.fileId;",
+                  "    if (id) pm.collectionVariables.set('drive_file_id', id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "Required: choose file. For more files, add another form field with the same key \"files\"."
+                },
+                {
+                  "key": "folder",
+                  "type": "text",
+                  "value": "",
+                  "description": "Optional: e.g. uploads/test — created under GOOGLE_DRIVE_FOLDER_ID"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/google-drive/upload",
+            "description": "Body must be form-data (not raw JSON). Keys: **files** = File (required). **folder** = Text (optional). Single-file alternative: use key **file** instead of **files**. Optional folder also as query: ?folder=my/subfolder"
+          }
+        },
+        {
+          "name": "Get Drive file metadata",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/google-drive/file/{{drive_file_id}}",
+            "description": "Set collection variable drive_file_id from upload response data.file.fileId (or files[].fileId)."
+          }
+        },
+        {
+          "name": "Delete Drive file",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/google-drive/file/{{drive_file_id}}",
+            "description": "Uses drive_file_id (set after upload)."
           }
         }
       ]

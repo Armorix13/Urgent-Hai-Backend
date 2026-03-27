@@ -9,32 +9,41 @@ import {
   applyWatchPolicyToCourse,
   FULL_LISTING_ACCESS,
 } from "../utils/courseAccess.js";
+import { attachMyRatingsToEnrollments } from "./rating.service.js";
 
 const enrichCourseWithVideosAndAccess = (course, videos) =>
   applyWatchPolicyToCourse(attachVideosToCourseLean(course, videos), FULL_LISTING_ACCESS);
 
-const enrichEnrollmentWithVideos = async (enrollment) => {
+const enrichEnrollmentWithVideos = async (enrollment, userId) => {
   if (!enrollment?.course?._id) return enrollment;
   const videos = await fetchVideosForCourse(enrollment.course._id);
-  return {
+  let out = {
     ...enrollment,
     course: enrichCourseWithVideosAndAccess(enrollment.course, videos),
   };
+  if (userId) {
+    const [withRating] = await attachMyRatingsToEnrollments([out], userId);
+    out = withRating;
+  } else {
+    out = { ...out, myRating: null };
+  }
+  return out;
 };
 
-const enrichEnrollmentsListWithVideos = async (enrollments) => {
+const enrichEnrollmentsListWithVideos = async (enrollments, userId) => {
   if (!enrollments?.length) return enrollments;
   const ids = enrollments.map((e) => e.course?._id).filter(Boolean);
-  if (!ids.length) return enrollments;
+  if (!ids.length) return attachMyRatingsToEnrollments(enrollments, userId);
   const grouped = await fetchVideosGroupedByCourseIds(ids);
-  return enrollments.map((e) => {
-    if (!e.course?._id) return e;
+  let list = enrollments.map((e) => {
+    if (!e.course?._id) return { ...e, myRating: null };
     const videos = grouped.get(e.course._id.toString()) ?? [];
     return {
       ...e,
       course: enrichCourseWithVideosAndAccess(e.course, videos),
     };
   });
+  return attachMyRatingsToEnrollments(list, userId);
 };
 
 const enroll = async (req) => {
@@ -105,7 +114,7 @@ const enroll = async (req) => {
       )
       .lean();
 
-    return enrichEnrollmentWithVideos(populated);
+    return enrichEnrollmentWithVideos(populated, userId);
   } catch (err) {
     throw err;
   }
@@ -115,7 +124,7 @@ const getUserEnrollments = async (req) => {
   try {
     const userId = req.userId;
     const enrollments = await Enrollment.getUserEnrollments(userId);
-    return enrichEnrollmentsListWithVideos(enrollments);
+    return enrichEnrollmentsListWithVideos(enrollments, userId);
   } catch (err) {
     throw err;
   }
@@ -141,7 +150,7 @@ const getEnrollmentById = async (req) => {
       throw new Error("Unauthorized to view this enrollment");
     }
 
-    return enrichEnrollmentWithVideos(enrollment);
+    return enrichEnrollmentWithVideos(enrollment, userId);
   } catch (err) {
     throw err;
   }
@@ -180,7 +189,7 @@ const updateProgress = async (req) => {
       )
       .lean();
 
-    return enrichEnrollmentWithVideos(populated);
+    return enrichEnrollmentWithVideos(populated, userId);
   } catch (err) {
     throw err;
   }

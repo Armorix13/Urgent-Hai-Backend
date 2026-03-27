@@ -33,6 +33,25 @@ function isJwtAuthError(err) {
 
 function errorHandler(err, req, res, next) {
     switch (true) {
+        case typeof err === "object" &&
+            err !== null &&
+            Number.isInteger(err.statusCode) &&
+            err.statusCode >= 400 &&
+            err.statusCode < 600:
+            return res.status(err.statusCode).json({
+                status: err.statusCode,
+                message: err.message || "Error",
+                data: null,
+            });
+        case typeof err === "object" && err !== null && err.name === "MulterError":
+            return res.status(400).json({
+                status: 400,
+                message:
+                    err.code === "LIMIT_FILE_SIZE"
+                        ? "File too large (max 500 MB per file)"
+                        : err.message || "Upload error",
+                data: null,
+            });
         case typeof err === 'object' && isMongoConnectionError(err):
             return res.status(503).json({
                 status: 503,

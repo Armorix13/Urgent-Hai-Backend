@@ -16,6 +16,8 @@ import previousResultRoute from "./previousResult.route.js";
 import courseRoute from "./course.route.js";
 import courseVideoRoute from "./courseVideo.route.js";
 import enrollmentRoute from "./enrollment.route.js";
+import googleDriveRoute from "./googleDrive.route.js";
+import ratingRoute from "./rating.route.js";
 
 const router = express.Router();
 
@@ -36,5 +38,7 @@ router.use("/previous-result", previousResultRoute);
 router.use("/course", courseRoute);
 router.use("/course-video", courseVideoRoute);
 router.use("/enrollment", enrollmentRoute);
+router.use("/google-drive", googleDriveRoute);
+router.use("/rating", ratingRoute);
 
 export default router;
