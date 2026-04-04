@@ -52,9 +52,23 @@ const getAllCollaborators = async (req, res, next) => {
   }
 };
 
+const deleteCollaborator = async (req, res, next) => {
+  try {
+    const collaborator = await collaboratorService.deleteCollaborator(req);
+    return res.status(200).json({
+      success: true,
+      message: "Collaborator deleted successfully!",
+      collaborator,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const collaboratorController = {
   addCollaborator,
   updateCollaborator,
   getCollaboratorById,
   getAllCollaborators,
+  deleteCollaborator,
 };

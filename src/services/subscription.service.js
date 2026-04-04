@@ -4,6 +4,7 @@ import {
   subscriptionStatusType,
   paymentStatusType,
 } from "../utils/enum.js";
+import { getPublicUserById } from "../utils/userPublic.util.js";
 
 export const getSubscriptionById = async (id) => {
   return await Subscription.findById(id).populate("planId", "title price currency durationMonths discountPercentage");
@@ -101,20 +102,23 @@ const getAllSubscriptions = async (req) => {
       filter.status = status;
     }
 
-    const subscriptions = await Subscription.find(filter)
-      .populate("planId", "title price currency durationMonths discountPercentage")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    const total = await Subscription.countDocuments(filter);
+    const [subscriptions, total, user] = await Promise.all([
+      Subscription.find(filter)
+        .populate("planId", "title price currency durationMonths discountPercentage")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Subscription.countDocuments(filter),
+      getPublicUserById(userId),
+    ]);
 
     return {
       subscriptions,
       total,
       page,
       totalPages: Math.ceil(total / limit) || 1,
+      user,
     };
   } catch (error) {
     throw error;
@@ -145,16 +149,19 @@ const getActiveSubscription = async (req) => {
   try {
     const userId = req.userId;
 
-    const subscription = await Subscription.findOne({
-      userId,
-      status: subscriptionStatusType.ACTIVE,
-      expiresAt: { $gt: new Date() },
-    })
-      .populate("planId", "title price currency durationMonths discountPercentage")
-      .sort({ expiresAt: -1 })
-      .lean();
+    const [subscription, user] = await Promise.all([
+      Subscription.findOne({
+        userId,
+        status: subscriptionStatusType.ACTIVE,
+        expiresAt: { $gt: new Date() },
+      })
+        .populate("planId", "title price currency durationMonths discountPercentage")
+        .sort({ expiresAt: -1 })
+        .lean(),
+      getPublicUserById(userId),
+    ]);
 
-    return subscription;
+    return { subscription: subscription ?? null, user };
   } catch (error) {
     throw error;
   }

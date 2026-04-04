@@ -32,4 +32,11 @@ collaboratorRoute.get(
   collaboratorController.getAllCollaborators
 );
 
+collaboratorRoute.delete(
+  "/delete/:id",
+  validate(collaboratorValidationSchemas.deleteCollaboratorSchema),
+//   authenticate,
+  collaboratorController.deleteCollaborator
+);
+
 export default collaboratorRoute;

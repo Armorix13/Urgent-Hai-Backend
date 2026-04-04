@@ -15,11 +15,14 @@ const addCourse = async (req, res, next) => {
 
 const getCourses = async (req, res, next) => {
   try {
-    const data = await courseService.getCoursesWithPagination(req);
+    const { courses, pagination, totalVideosOnPage } =
+      await courseService.getCoursesWithPagination(req);
     return res.status(200).json({
       success: true,
       message: "Courses fetched successfully!",
-      ...data,
+      courses: courses ?? [],
+      pagination: pagination ?? null,
+      totalVideosOnPage: totalVideosOnPage ?? 0,
     });
   } catch (error) {
     next(error);

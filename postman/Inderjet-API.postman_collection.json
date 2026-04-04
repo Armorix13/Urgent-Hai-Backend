@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Inderjet API",
-    "description": "Inderjet / Naadaman backend — full API collection.\n\n**Collection variables:** `baseUrl`, `access_token` (set by Login), `course_id`, `enrollment_id`, `drive_file_id`.\n\n**Course list/detail:** Send `Authorization: Bearer {{access_token}}` on GET `/course` (optional) to receive `isEnrolled` + `myRating` per course.\n\n**Enrollment & rating:** All `/enrollment/*` and `/rating/*` routes require Bearer token.",
+    "name": "Raag App API",
+    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -23,6 +23,18 @@
     },
     {
       "key": "enrollment_id",
+      "value": ""
+    },
+    {
+      "key": "course_video_id",
+      "value": ""
+    },
+    {
+      "key": "plan_id",
+      "value": ""
+    },
+    {
+      "key": "collaborator_id",
       "value": ""
     }
   ],
@@ -569,9 +581,26 @@
     },
     {
       "name": "Collaborator",
+      "description": "Collaborator: **name**, **profile** (URL/path), **phoneNumber**, **profession** (1=Raagi, 2=Dhadhi, 3=Katha Vachak). No references from other models — delete is a hard remove. Auth middleware is commented out in routes (enable in **collaborator.route.js** if needed).",
       "item": [
         {
           "name": "Add Collaborator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    if (j.collaborator && j.collaborator._id) {",
+                  "        pm.collectionVariables.set('collaborator_id', j.collaborator._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
@@ -580,23 +609,54 @@
               "raw": "{\n  \"name\": \"John Doe\",\n  \"profile\": \"/image/profile.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"profession\": 1\n}"
             },
             "url": "{{baseUrl}}/api/v1/collaborator/add",
-            "description": "Add collaborator. profession: 1=Raagi, 2=Dhadhi, 3=Katha Vachak"
+            "description": "**POST /collaborator/add** — Creates document. Test script saves **collaborator_id** on 201."
           }
         },
         {
           "name": "Get All Collaborators",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    const first = j.collaborators && j.collaborators[0];",
+                  "    if (first && first._id) pm.collectionVariables.set('collaborator_id', first._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/collaborator/get-all",
-            "description": "Get all collaborators"
+            "description": "**GET /collaborator/get-all** — Sorted by **createdAt** desc. Test script sets **collaborator_id** from first row."
           }
         },
         {
           "name": "Get Collaborator by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    if (j.collaborator && j.collaborator._id) {",
+                  "        pm.collectionVariables.set('collaborator_id', j.collaborator._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/collaborator/get/:id",
-            "description": "Get single collaborator"
+            "url": "{{baseUrl}}/api/v1/collaborator/get/{{collaborator_id}}",
+            "description": "**GET /collaborator/get/:id** — Valid MongoDB ObjectId required."
           }
         },
         {
@@ -608,14 +668,24 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Updated Name\",\n  \"phoneNumber\": \"9876543210\"\n}"
             },
-            "url": "{{baseUrl}}/api/v1/collaborator/update/:id",
-            "description": "Update collaborator"
+            "url": "{{baseUrl}}/api/v1/collaborator/update/{{collaborator_id}}",
+            "description": "**PUT /collaborator/update/:id** — Partial body; only provided fields update."
+          }
+        },
+        {
+          "name": "Delete Collaborator",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/collaborator/delete/{{collaborator_id}}",
+            "description": "**DELETE /collaborator/delete/:id** — Permanently removes the document. Response includes deleted **collaborator** snapshot. Set **{{collaborator_id}}** first (Add / Get All / Get by ID)."
           }
         }
       ]
     },
     {
       "name": "Suggestion",
+      "description": "All responses include **user** (safe profile: `_id`, `userName`, `email`, `role`, `roleName`, `phoneNumber`, `profileImage`, `gender`, `age`, `language`, etc. — no password or tokens).",
       "item": [
         {
           "name": "Create Suggestion",
@@ -627,7 +697,7 @@
               "raw": "{\n  \"title\": \"Add dark mode\",\n  \"description\": \"It would be great to have a dark theme option for the app.\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/suggestion",
-            "description": "Submit a suggestion (Suggestion Box)"
+            "description": "Returns **suggestion** + **user**."
           }
         },
         {
@@ -636,7 +706,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/suggestion",
-            "description": "List current user's suggestions"
+            "description": "Returns **suggestions** + **user**."
           }
         },
         {
@@ -645,7 +715,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/suggestion/:id",
-            "description": "Get single suggestion by ID"
+            "description": "Returns **suggestion** + **user**."
           }
         },
         {
@@ -658,7 +728,7 @@
               "raw": "{\n  \"title\": \"Updated title\",\n  \"description\": \"Updated description\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/suggestion/:id",
-            "description": "Update own suggestion"
+            "description": "Returns **suggestion** + **user**."
           }
         },
         {
@@ -667,7 +737,7 @@
             "method": "DELETE",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/suggestion/:id",
-            "description": "Delete own suggestion"
+            "description": "Returns **user** only (suggestion removed)."
           }
         }
       ]
@@ -677,6 +747,21 @@
       "item": [
         {
           "name": "Get All Plans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    const first = j.plans && j.plans[0];",
+                  "    if (first && first._id) pm.collectionVariables.set('plan_id', first._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
@@ -690,7 +775,7 @@
                 {"key": "isActive", "value": "true", "disabled": true}
               ]
             },
-            "description": "Get all subscription plans (public, no auth)"
+            "description": "Public. Test script saves first plan `_id` to **{{plan_id}}** from `plans[0]`."
           }
         },
         {
@@ -749,10 +834,10 @@
             "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planId\": \"PLAN_ID_HERE\",\n  \"paymentReference\": \"razorpay_order_xxx\"\n}"
+              "raw": "{\n  \"planId\": \"{{plan_id}}\",\n  \"paymentReference\": \"razorpay_order_xxx\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/subscription/purchase",
-            "description": "Initiate subscription purchase (Pay button). Use planId from Get All Plans."
+            "description": "Run **Get All Plans** first to fill **{{plan_id}}**, or paste a plan Mongo id."
           }
         },
         {
@@ -774,7 +859,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/subscription/active",
-            "description": "Get current user's active subscription"
+            "description": "Returns **subscription** (or null) and **user** (safe profile: no password/tokens). **user** is always present for the authenticated account."
           }
         },
         {
@@ -792,7 +877,7 @@
                 {"key": "status", "value": "2", "disabled": true}
               ]
             },
-            "description": "List all user subscriptions"
+            "description": "Returns **subscriptions**, pagination fields, and **user** (safe profile for the authenticated user)."
           }
         },
         {
@@ -808,32 +893,77 @@
     },
     {
       "name": "Course",
+      "description": "**courseType:** `1` = paid (require **price**), `2` = free.\n**identifierId** — optional external id (filter: `?identifierId=`).\n**courseContent** — embedded lessons on the Course document.\n**videos** — syncs to **CourseVideo** when this key is present on POST/PUT (full replace). Omit **videos** on PUT to keep existing videos.\n**GET /** returns `courses`, `pagination` (includes `pageSize`), `totalVideosOnPage`.",
       "item": [
         {
           "name": "Get All Courses",
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/course?page=1&limit=10&search=&courseType=&category=&level=",
-            "description": "Public. Pagination + filters. No token: isEnrolled=false, myRating=null on each course."
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/course?page=1&limit=10&search=&courseType=&category=&level=&sortBy=createdAt&sortOrder=desc&minPrice=&maxPrice=&tags=&identifierId=&isActive=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "course"],
+              "query": [
+                {"key": "page", "value": "1", "description": "Page (default 1)"},
+                {"key": "limit", "value": "10", "description": "Page size / pageSize in response"},
+                {"key": "search", "value": "", "description": "Matches title, description, category, identifierId, tags", "disabled": true},
+                {"key": "courseType", "value": "", "description": "1 or 2", "disabled": true},
+                {"key": "category", "value": "", "disabled": true},
+                {"key": "level", "value": "", "description": "beginner | intermediate | advanced", "disabled": true},
+                {"key": "sortBy", "value": "createdAt", "description": "Field name", "disabled": true},
+                {"key": "sortOrder", "value": "desc", "description": "asc | desc", "disabled": true},
+                {"key": "minPrice", "value": "", "disabled": true},
+                {"key": "maxPrice", "value": "", "disabled": true},
+                {"key": "tags", "value": "", "description": "Comma-separated", "disabled": true},
+                {"key": "identifierId", "value": "", "description": "Exact match external id", "disabled": true},
+                {"key": "isActive", "value": "", "description": "true|false (admin)", "disabled": true}
+              ]
+            },
+            "description": "Public. Optional Bearer → `isEnrolled` + `myRating` per course. Each item includes `courseTypeName`, merged `videos` from CourseVideo."
           }
         },
         {
-          "name": "Get All Courses (with auth — isEnrolled)",
+          "name": "Get All Courses (with Bearer)",
           "request": {
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
-            "url": "{{baseUrl}}/api/v1/course?page=1&limit=10",
-            "description": "Same as Get All Courses but sends Bearer token. Each course includes isEnrolled + myRating for the logged-in user."
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/course?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "course"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"}
+              ]
+            },
+            "description": "Same as **Get All Courses** with auth so enrollment and rating flags are populated."
           }
         },
         {
           "name": "Get Course by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    const id = j.course && j.course._id;",
+                  "    if (id) pm.collectionVariables.set('course_id', id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
+            "header": [],
             "url": "{{baseUrl}}/api/v1/course/{{course_id}}",
-            "description": "Single course + videos. Optional: add Authorization Bearer for isEnrolled + myRating. Uses {{course_id}}."
+            "description": "Single course + `videos` array + `courseContent`. Optional Bearer for `isEnrolled` / `myRating`. Saves `_id` to **{{course_id}}** on success."
           }
         },
         {
@@ -841,34 +971,77 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
+            "header": [],
             "url": "{{baseUrl}}/api/v1/course/{{course_id}}/similar?limit=5",
-            "description": "Similar by category. Optional Bearer for isEnrolled/myRating on each item."
+            "description": "Same category, excludes current id. Query **limit** (default 5). Optional Bearer."
           }
         },
         {
           "name": "Create Course",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    if (j.course && j.course._id) {",
+                  "        pm.collectionVariables.set('course_id', j.course._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Music Course\",\n  \"description\": \"Learn music\",\n  \"courseType\": 2,\n  \"category\": \"Music\",\n  \"level\": \"beginner\"\n}"
+              "raw": "{\n  \"title\": \"Intro to Raag\",\n  \"identifierId\": \"EXT-1001\",\n  \"description\": \"Full description (max 2000 chars).\",\n  \"courseType\": 2,\n  \"category\": \"Classical\",\n  \"level\": \"beginner\",\n  \"tags\": [\"raag\", \"beginner\"],\n  \"thumbnail\": null,\n  \"duration\": \"10h\",\n  \"benefits\": [\"Lifetime access\"],\n  \"prerequisites\": [],\n  \"learningOutcomes\": [\"Understand basics\"],\n  \"courseContent\": [\n    {\n      \"title\": \"Embedded lesson 1\",\n      \"description\": \"On Course document\",\n      \"videoUrl\": \"https://example.com/preview.mp4\",\n      \"duration\": \"12m\",\n      \"order\": 0,\n      \"isPreview\": true\n    }\n  ],\n  \"videos\": [\n    {\n      \"videoUrl\": \"https://example.com/playback-1.mp4\",\n      \"title\": \"CourseVideo row 1\",\n      \"description\": \"Merged as videos[] in GET\",\n      \"order\": 0,\n      \"isActive\": true\n    },\n    {\n      \"video_url\": \"https://example.com/playback-2.mp4\",\n      \"title\": \"Alias video_url\",\n      \"order\": 1\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/api/v1/course",
-            "description": "Create course (auth required). courseType: 1=paid, 2=free. For paid add price."
+            "description": "Auth required. **videos** optional — creates CourseVideo rows in same transaction. For **courseType: 1** add **price**. Remove optional keys you do not need. Saves new **course_id** on 201."
           }
         },
         {
-          "name": "Update Course",
+          "name": "Create Course (minimal — free)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Minimal Course\",\n  \"description\": \"Short description.\",\n  \"courseType\": 2,\n  \"category\": \"Music\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/course",
+            "description": "Smallest valid body for a free course (no inline videos)."
+          }
+        },
+        {
+          "name": "Update Course (fields only)",
           "request": {
             "method": "PUT",
             "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated Course Title\",\n  \"isActive\": true\n}"
+              "raw": "{\n  \"title\": \"Updated title\",\n  \"identifierId\": \"EXT-1001-rev2\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}"
             },
             "url": "{{baseUrl}}/api/v1/course/{{course_id}}",
-            "description": "Update course (admin auth)"
+            "description": "Partial update. **Does not** send `videos` — existing CourseVideo rows stay unchanged."
+          }
+        },
+        {
+          "name": "Update Course (replace all videos)",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videos\": [\n    {\n      \"videoUrl\": \"https://example.com/new-only-lesson.mp4\",\n      \"title\": \"Replaced list\",\n      \"order\": 0\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/course/{{course_id}}",
+            "description": "Sending **videos** replaces **all** CourseVideo documents for this course. Use **videos: []** to remove every video."
           }
         },
         {
@@ -877,7 +1050,7 @@
             "method": "DELETE",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/course/{{course_id}}",
-            "description": "Soft delete course (admin)"
+            "description": "Sets **isDeleted** + **isActive: false**. CourseVideo rows remain in DB."
           }
         },
         {
@@ -886,34 +1059,91 @@
             "method": "DELETE",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/course/{{course_id}}/hard",
-            "description": "Permanently delete course (admin)"
+            "description": "Permanently deletes Course **and** all CourseVideo rows for this course (transaction)."
           }
         }
       ]
     },
     {
       "name": "Course Video",
+      "description": "Granular CRUD for **CourseVideo** documents. Response uses **videoUrl** (normalized from **video_url**). Alternatively manage the full list via **Course → Create/Update** with a **videos** array.",
       "item": [
         {
           "name": "Get Videos by Course",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    const first = j.videos && j.videos[0];",
+                  "    if (first && first._id) pm.collectionVariables.set('course_video_id', first._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
+            "header": [],
             "url": "{{baseUrl}}/api/v1/course-video/course/{{course_id}}",
-            "description": "List videos for course. Optional Bearer (access rules). Uses {{course_id}}."
+            "description": "`GET .../course-video/course/:courseId` — response `{ videos }` (each item has **videoUrl**). Optional Bearer. Test script sets **course_video_id** from the first video when present."
+          }
+        },
+        {
+          "name": "Get Course Video by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    const id = j.video && j.video._id;",
+                  "    if (id) pm.collectionVariables.set('course_video_id', id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/course-video/{{course_video_id}}",
+            "description": "Response: `{ success, message, video }`. Set **{{course_video_id}}** first, or run after **Get Videos by Course** (copy an id from `videos[]`). Test script saves **video._id**."
           }
         },
         {
           "name": "Add Course Video",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "    const j = pm.response.json();",
+                  "    const v = j.video || j;",
+                  "    if (v && v._id) pm.collectionVariables.set('course_video_id', v._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"courseId\": \"{{course_id}}\",\n  \"video_url\": \"/video/lesson1.mp4\",\n  \"title\": \"Lesson 1\",\n  \"description\": \"Intro\",\n  \"order\": 1\n}"
+              "raw": "{\n  \"courseId\": \"{{course_id}}\",\n  \"video_url\": \"https://example.com/lesson1.mp4\",\n  \"title\": \"Lesson 1\",\n  \"description\": \"Intro\",\n  \"order\": 1,\n  \"isActive\": true\n}"
             },
             "url": "{{baseUrl}}/api/v1/course-video",
-            "description": "Requires Bearer (admin). Uses {{course_id}}."
+            "description": "Bearer required. **courseId** must match an existing course. Saves new **course_video_id** when response includes created doc."
           }
         },
         {
@@ -923,10 +1153,10 @@
             "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated Lesson\",\n  \"order\": 2\n}"
+              "raw": "{\n  \"title\": \"Updated lesson title\",\n  \"video_url\": \"https://example.com/lesson1-updated.mp4\",\n  \"order\": 2,\n  \"isActive\": true\n}"
             },
-            "url": "{{baseUrl}}/api/v1/course-video/:courseVideoId",
-            "description": "Requires Bearer. Replace :courseVideoId with lesson document _id."
+            "url": "{{baseUrl}}/api/v1/course-video/{{course_video_id}}",
+            "description": "Bearer required. Uses **{{course_video_id}}** (Mongo _id of CourseVideo)."
           }
         },
         {
@@ -934,8 +1164,8 @@
           "request": {
             "method": "DELETE",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
-            "url": "{{baseUrl}}/api/v1/course-video/:courseVideoId",
-            "description": "Requires Bearer. Replace :courseVideoId with lesson _id."
+            "url": "{{baseUrl}}/api/v1/course-video/{{course_video_id}}",
+            "description": "Bearer required. Deletes one CourseVideo document."
           }
         }
       ]

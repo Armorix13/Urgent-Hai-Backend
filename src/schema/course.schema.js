@@ -8,6 +8,16 @@ const objectId = Joi.string().custom((value, helpers) => {
   return value;
 }, "ObjectId validation");
 
+/** Inline videos: synced to CourseVideo on POST/PUT /course (replace-all when `videos` is sent). */
+const courseVideoInlineSchema = Joi.object().keys({
+  video_url: Joi.string().trim().allow(null, "").optional(),
+  videoUrl: Joi.string().trim().allow(null, "").optional(),
+  title: Joi.string().trim().allow(null, "").optional(),
+  description: Joi.string().trim().allow(null, "").optional(),
+  order: Joi.number().optional(),
+  isActive: Joi.boolean().optional(),
+});
+
 const courseContentSchema = Joi.object().keys({
   title: Joi.string().trim().required(),
   description: Joi.string().trim().optional(),
@@ -21,6 +31,7 @@ const addCourseSchema = {
   body: Joi.object()
     .keys({
       title: Joi.string().trim().max(200).required(),
+      identifierId: Joi.string().trim().max(256).allow(null, "").optional(),
       description: Joi.string().trim().max(2000).required(),
       courseType: Joi.number().valid(1, 2).required(),
       price: Joi.number().min(0).when("courseType", {
@@ -36,6 +47,7 @@ const addCourseSchema = {
     tags: Joi.array().items(Joi.string().lowercase()).optional(),
     isActive: Joi.boolean().optional(),
     courseContent: Joi.array().items(courseContentSchema).optional(),
+    videos: Joi.array().items(courseVideoInlineSchema).optional(),
     prerequisites: Joi.array().items(Joi.string().trim()).optional(),
     learningOutcomes: Joi.array().items(Joi.string().trim().max(300)).optional(),
     })
@@ -46,6 +58,7 @@ const updateCourseSchema = {
   params: Joi.object().keys({ id: objectId.required() }),
   body: Joi.object().keys({
     title: Joi.string().trim().max(200).optional(),
+    identifierId: Joi.string().trim().max(256).allow(null, "").optional(),
     description: Joi.string().trim().max(2000).optional(),
     courseType: Joi.number().valid(1, 2).optional(),
     price: Joi.number().min(0).optional(),
@@ -58,6 +71,7 @@ const updateCourseSchema = {
     isActive: Joi.boolean().optional(),
     isDeleted: Joi.boolean().optional(),
     courseContent: Joi.array().items(courseContentSchema).optional(),
+    videos: Joi.array().items(courseVideoInlineSchema).optional(),
     prerequisites: Joi.array().items(Joi.string().trim()).optional(),
     learningOutcomes: Joi.array().items(Joi.string().trim().max(300)).optional(),
   }),
@@ -76,6 +90,7 @@ const getCoursesSchema = {
     minPrice: Joi.number().optional(),
     maxPrice: Joi.number().optional(),
     tags: Joi.string().optional(),
+    identifierId: Joi.string().trim().optional(),
   }),
 };
 

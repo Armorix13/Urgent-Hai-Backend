@@ -76,9 +76,24 @@ const getAllCollaboratorsService = async (req) => {
   }
 };
 
+const deleteCollaborator = async (req) => {
+  try {
+    const { id } = req.params;
+    const collaborator = await Collaborator.findByIdAndDelete(id);
+    if (!collaborator) {
+      throw new Error("Collaborator not found");
+    }
+    return collaborator;
+  } catch (error) {
+    console.error("Delete Collaborator Error:", error);
+    throw new Error(error.message || "Failed to delete collaborator");
+  }
+};
+
 export const collaboratorService = {
   addCollaborator,
   updateCollaborator,
   getCollaboratorById: getCollaboratorByIdService,
   getAllCollaborators: getAllCollaboratorsService,
+  deleteCollaborator,
 };

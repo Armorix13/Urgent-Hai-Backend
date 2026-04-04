@@ -39,6 +39,12 @@ const courseSchema = new mongoose.Schema(
       trim: true,
       maxlength: 200,
     },
+    identifierId: {
+      type: String,
+      trim: true,
+      maxlength: 256,
+      default: null,
+    },
     description: {
       type: String,
       required: true,
@@ -137,6 +143,7 @@ const courseSchema = new mongoose.Schema(
 );
 
 courseSchema.index({ title: 1 });
+courseSchema.index({ identifierId: 1 }, { sparse: true });
 courseSchema.index({ category: 1 });
 courseSchema.index({ tags: 1 });
 courseSchema.index({ courseType: 1 });
@@ -165,6 +172,7 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
     maxPrice = null,
     tags = null,
     isActive = null,
+    identifierId = null,
   } = options;
 
   const query = { isDeleted: false };
@@ -181,6 +189,7 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
       { title: searchRegex },
       { description: searchRegex },
       { category: searchRegex },
+      { identifierId: searchRegex },
       { tags: { $in: [searchRegex] } },
     ];
   }
@@ -199,6 +208,10 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
     query.tags = { $in: tags };
   }
 
+  if (identifierId) {
+    query.identifierId = identifierId.trim();
+  }
+
   const skip = (page - 1) * limit;
   const sortOptions = {};
   sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
@@ -214,8 +227,9 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
   return {
     courses,
     pagination: {
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page, 10),
+      pageSize: parseInt(limit, 10),
+      totalPages: Math.ceil(total / limit) || 0,
       totalCourses: total,
       hasNextPage: page < Math.ceil(total / limit),
       hasPrevPage: page > 1,

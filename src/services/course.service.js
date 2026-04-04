@@ -1,13 +1,25 @@
+import mongoose from "mongoose";
 import Course from "../models/course.model.js";
 import {
   fetchVideosForCourse,
   fetchVideosGroupedByCourseIds,
 } from "../utils/courseVideo.util.js";
 import {
+  deleteAllVideosForCourse,
+  replaceCourseVideosForCourse,
+  splitCourseBody,
+} from "../utils/courseVideoSync.util.js";
+import {
   applyWatchPolicyToCourse,
   FULL_LISTING_ACCESS,
 } from "../utils/courseAccess.js";
 import { attachUserCourseFlags } from "./rating.service.js";
+
+/** Lean queries omit Mongoose virtuals; mirror courseTypeName for API consumers. */
+const attachCourseTypeName = (course) => ({
+  ...course,
+  courseTypeName: Number(course.courseType) === 1 ? "paid" : "free",
+});
 
 const sanitizeCoursePayload = (body) => {
   if (!body || typeof body !== "object") return body;
@@ -16,6 +28,12 @@ const sanitizeCoursePayload = (body) => {
     const t = next.thumbnail;
     if (t === "" || (typeof t === "string" && !t.trim())) {
       next.thumbnail = null;
+    }
+  }
+  if (next.identifierId !== undefined) {
+    const id = next.identifierId;
+    if (id === "" || (typeof id === "string" && !id.trim())) {
+      next.identifierId = null;
     }
   }
   return next;
@@ -27,8 +45,24 @@ const addCourse = async (req) => {
     if (body.courseType === 1 && (body.price == null || body.price < 0)) {
       throw new Error("Price is required for paid courses");
     }
-    const course = await Course.create(body);
-    return course;
+    const { courseFields, videos, hasVideos } = splitCourseBody(body);
+
+    if (!hasVideos) {
+      return Course.create(courseFields);
+    }
+
+    const session = await mongoose.startSession();
+    try {
+      let course;
+      await session.withTransaction(async () => {
+        const created = await Course.create([courseFields], { session });
+        course = created[0];
+        await replaceCourseVideosForCourse(course._id, videos ?? [], session);
+      });
+      return course;
+    } finally {
+      await session.endSession();
+    }
   } catch (err) {
     throw err;
   }
@@ -49,6 +83,7 @@ const getCoursesWithPagination = async (req) => {
       maxPrice,
       tags,
       isActive,
+      identifierId,
     } = req.query;
 
     const tagsArr = tags ? tags.split(",").map((t) => t.trim().toLowerCase()) : null;
@@ -66,6 +101,7 @@ const getCoursesWithPagination = async (req) => {
       maxPrice: maxPrice ? parseFloat(maxPrice) : null,
       tags: tagsArr,
       isActive: isActive !== undefined ? isActive === "true" : null,
+      identifierId: identifierId?.trim?.() || null,
     });
 
     let courses = result.courses;
@@ -82,6 +118,7 @@ const getCoursesWithPagination = async (req) => {
         return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
       });
       courses = await attachUserCourseFlags(courses, req.userId);
+      courses = courses.map(attachCourseTypeName);
     }
 
     const totalVideosOnPage = courses.reduce(
@@ -116,7 +153,7 @@ const getCourseById = async (req) => {
     };
     const withPolicy = applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
     const [flagged] = await attachUserCourseFlags([withPolicy], req.userId);
-    return flagged;
+    return attachCourseTypeName(flagged);
   } catch (err) {
     throw err;
   }
@@ -150,7 +187,7 @@ const getSimilarCourses = async (req) => {
       return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
     });
     list = await attachUserCourseFlags(list, req.userId);
-    return list;
+    return list.map(attachCourseTypeName);
   } catch (err) {
     throw err;
   }
@@ -160,14 +197,33 @@ const updateCourse = async (req) => {
   try {
     const { id } = req.params;
     const updates = sanitizeCoursePayload(req.body);
+    const { courseFields, videos, hasVideos } = splitCourseBody(updates);
 
-    const course = await Course.findByIdAndUpdate(id, updates, { new: true });
-
-    if (!course) {
-      throw new Error("Course not found");
+    if (!hasVideos) {
+      const course = await Course.findByIdAndUpdate(id, courseFields, { new: true });
+      if (!course) {
+        throw new Error("Course not found");
+      }
+      return course;
     }
 
-    return course;
+    const session = await mongoose.startSession();
+    try {
+      let course;
+      await session.withTransaction(async () => {
+        course = await Course.findByIdAndUpdate(id, courseFields, {
+          new: true,
+          session,
+        });
+        if (!course) {
+          throw new Error("Course not found");
+        }
+        await replaceCourseVideosForCourse(id, videos ?? [], session);
+      });
+      return course;
+    } finally {
+      await session.endSession();
+    }
   } catch (err) {
     throw err;
   }
@@ -196,13 +252,22 @@ const deleteCourse = async (req) => {
 const hardDeleteCourse = async (req) => {
   try {
     const { id } = req.params;
-    const course = await Course.findByIdAndDelete(id);
-
-    if (!course) {
-      throw new Error("Course not found");
+    const session = await mongoose.startSession();
+    try {
+      let course;
+      await session.withTransaction(async () => {
+        const found = await Course.findById(id).session(session);
+        if (!found) {
+          throw new Error("Course not found");
+        }
+        await deleteAllVideosForCourse(id, session);
+        await found.deleteOne({ session });
+        course = found;
+      });
+      return course;
+    } finally {
+      await session.endSession();
     }
-
-    return course;
   } catch (err) {
     throw err;
   }

@@ -54,13 +54,14 @@ const getSubscriptionById = async (req, res, next) => {
 
 const getActiveSubscription = async (req, res, next) => {
   try {
-    const subscription = await subscriptionService.getActiveSubscription(req);
+    const { subscription, user } = await subscriptionService.getActiveSubscription(req);
     return res.status(200).json({
       success: true,
       message: subscription
         ? "Active subscription found."
         : "No active subscription.",
       subscription,
+      user,
     });
   } catch (error) {
     next(error);

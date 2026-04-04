@@ -110,7 +110,7 @@ const enroll = async (req) => {
     const populated = await Enrollment.findById(enrollment._id)
       .populate(
         "course",
-        "title description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
+        "title identifierId description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
       )
       .lean();
 
@@ -138,7 +138,7 @@ const getEnrollmentById = async (req) => {
     const enrollment = await Enrollment.findById(id)
       .populate(
         "course",
-        "title description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
+        "title identifierId description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
       )
       .lean();
 
@@ -185,7 +185,7 @@ const updateProgress = async (req) => {
     const populated = await Enrollment.findById(id)
       .populate(
         "course",
-        "title description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
+        "title identifierId description thumbnail duration level category courseType price courseContent tags benefits prerequisites learningOutcomes"
       )
       .lean();
 

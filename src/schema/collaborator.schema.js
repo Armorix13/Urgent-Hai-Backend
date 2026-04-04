@@ -1,4 +1,12 @@
 import Joi from "joi";
+import mongoose from "mongoose";
+
+const objectId = Joi.string().custom((value, helpers) => {
+  if (!mongoose.Types.ObjectId.isValid(value)) {
+    return helpers.error("any.invalid");
+  }
+  return value;
+}, "ObjectId validation");
 
 const addCollaboratorSchema = {
   body: Joi.object().keys({
@@ -24,6 +32,9 @@ const addCollaboratorSchema = {
 };
 
 const updateCollaboratorSchema = {
+  params: Joi.object().keys({
+    id: objectId.required(),
+  }),
   body: Joi.object().keys({
     name: Joi.string().max(100).optional().messages({
       "string.max": "Name must be at most 100 characters long.",
@@ -42,9 +53,16 @@ const updateCollaboratorSchema = {
   }),
 };
 
+const deleteCollaboratorSchema = {
+  params: Joi.object().keys({
+    id: objectId.required(),
+  }),
+};
+
 const collaboratorValidationSchemas = {
   addCollaboratorSchema,
   updateCollaboratorSchema,
+  deleteCollaboratorSchema,
 };
 
 export default collaboratorValidationSchemas;
