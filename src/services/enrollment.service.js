@@ -10,6 +10,11 @@ import {
   FULL_LISTING_ACCESS,
 } from "../utils/courseAccess.js";
 import { attachMyRatingsToEnrollments } from "./rating.service.js";
+import {
+  fetchRevenueCatSubscriber,
+  extractNonSubscriptionProductKeys,
+  filterEnrollmentsByRevenueCatProducts,
+} from "./revenueCat.service.js";
 
 const enrichCourseWithVideosAndAccess = (course, videos) =>
   applyWatchPolicyToCourse(attachVideosToCourseLean(course, videos), FULL_LISTING_ACCESS);
@@ -123,8 +128,44 @@ const enroll = async (req) => {
 const getUserEnrollments = async (req) => {
   try {
     const userId = req.userId;
-    const enrollments = await Enrollment.getUserEnrollments(userId);
-    return enrichEnrollmentsListWithVideos(enrollments, userId);
+    let enrollments = await Enrollment.getUserEnrollments(userId);
+
+    const revenueCat = {
+      applied: false,
+      subscriberFound: null,
+      nonSubscriptionProductKeys: [],
+    };
+
+    if (process.env.REVENUE_CAT_TOKEN) {
+      try {
+        const rcJson = await fetchRevenueCatSubscriber(userId);
+        if (rcJson === null) {
+          revenueCat.subscriberFound = false;
+          revenueCat.applied = true;
+          revenueCat.nonSubscriptionProductKeys = [];
+          enrollments = filterEnrollmentsByRevenueCatProducts(
+            enrollments,
+            new Set()
+          );
+        } else {
+          if (rcJson.request_date) revenueCat.requestDate = rcJson.request_date;
+          const keys = extractNonSubscriptionProductKeys(rcJson);
+          revenueCat.subscriberFound = true;
+          revenueCat.applied = true;
+          revenueCat.nonSubscriptionProductKeys = [...keys];
+          enrollments = filterEnrollmentsByRevenueCatProducts(enrollments, keys);
+        }
+      } catch (err) {
+        revenueCat.applied = false;
+        revenueCat.error = err.message || "RevenueCat request failed";
+        revenueCat.subscriberFound = null;
+      }
+    } else {
+      revenueCat.reason = "revenuecat_not_configured";
+    }
+
+    const list = await enrichEnrollmentsListWithVideos(enrollments, userId);
+    return { enrollments: list, revenueCat };
   } catch (err) {
     throw err;
   }

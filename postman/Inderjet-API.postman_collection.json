@@ -1223,7 +1223,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/enrollment",
-            "description": "Requires Bearer. Each item: course + myRating { rating, review, updatedAt } or null. Saves first enrollment _id to {{enrollment_id}}."
+            "description": "Requires Bearer. Lists enrollments whose **course.identifierId** matches a product key under RevenueCat **subscriber.non_subscriptions** (same id as non-consumable / one-time product in RC). Response includes **revenueCat** meta: `applied`, `subscriberFound`, `nonSubscriptionProductKeys`, optional `requestDate`. If **REVENUE_CAT_TOKEN** is missing, all DB enrollments are returned and `revenueCat.reason` is `revenuecat_not_configured`. If the RC request fails, all enrollments are returned and `revenueCat.error` is set. Each item: course + videos + myRating. Saves first enrollment _id to {{enrollment_id}}."
           }
         },
         {

@@ -15,11 +15,12 @@ const enroll = async (req, res, next) => {
 
 const getUserEnrollments = async (req, res, next) => {
   try {
-    const enrollments = await enrollmentService.getUserEnrollments(req);
+    const { enrollments, revenueCat } = await enrollmentService.getUserEnrollments(req);
     return res.status(200).json({
       success: true,
       message: "Enrollments fetched successfully!",
       enrollments,
+      revenueCat,
     });
   } catch (error) {
     next(error);
