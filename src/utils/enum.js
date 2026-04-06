@@ -20,6 +20,14 @@ export const professionType = {
   KATHA_VACHAK: 3,
 };
 
+/** Maps stored profession number → enum key string, e.g. 1 → "RAAGI" */
+export function professionNumberToKey(profession) {
+  if (profession == null || profession === "") return null;
+  const num = Number(profession);
+  const entry = Object.entries(professionType).find(([, v]) => v === num);
+  return entry ? entry[0] : null;
+}
+
 export const currencyType = {
   INR: "INR",
   USD: "USD",

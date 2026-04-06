@@ -2,11 +2,12 @@ import { subscriptionService } from "../services/subscription.service.js";
 
 const purchaseSubscription = async (req, res, next) => {
   try {
-    const subscription = await subscriptionService.purchaseSubscription(req);
+    const { subscription, user } = await subscriptionService.purchaseSubscription(req);
     return res.status(201).json({
       success: true,
       message: "Subscription initiated. Complete payment to activate.",
       subscription,
+      user,
     });
   } catch (error) {
     next(error);
@@ -15,11 +16,12 @@ const purchaseSubscription = async (req, res, next) => {
 
 const confirmPayment = async (req, res, next) => {
   try {
-    const subscription = await subscriptionService.confirmPayment(req);
+    const { subscription, user } = await subscriptionService.confirmPayment(req);
     return res.status(200).json({
       success: true,
       message: "Payment confirmed. Subscription is now active!",
       subscription,
+      user,
     });
   } catch (error) {
     next(error);
@@ -41,11 +43,12 @@ const getAllSubscriptions = async (req, res, next) => {
 
 const getSubscriptionById = async (req, res, next) => {
   try {
-    const subscription = await subscriptionService.getSubscriptionById(req);
+    const { subscription, user } = await subscriptionService.getSubscriptionById(req);
     return res.status(200).json({
       success: true,
       message: "Subscription fetched successfully!",
       subscription,
+      user,
     });
   } catch (error) {
     next(error);

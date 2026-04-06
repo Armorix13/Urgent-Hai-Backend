@@ -581,7 +581,7 @@
     },
     {
       "name": "Collaborator",
-      "description": "Collaborator: **name**, **profile** (URL/path), **phoneNumber**, **profession** (1=Raagi, 2=Dhadhi, 3=Katha Vachak). No references from other models — delete is a hard remove. Auth middleware is commented out in routes (enable in **collaborator.route.js** if needed).",
+      "description": "Collaborator: **name**, **profile**, **phoneNumber**, **profession** (stored 1|2|3), **professionValue** (`RAAGI` | `DHADHI` | `KATHA_VACHAK` — keys from `professionType`). No references from other models — delete is a hard remove. Auth middleware is commented out in routes (enable in **collaborator.route.js** if needed).",
       "item": [
         {
           "name": "Add Collaborator",
@@ -632,7 +632,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/collaborator/get-all",
-            "description": "**GET /collaborator/get-all** — Sorted by **createdAt** desc. Test script sets **collaborator_id** from first row."
+            "description": "**GET /collaborator/get-all** — Each item includes **profession** (1|2|3) and **professionValue** enum key string: `RAAGI` | `DHADHI` | `KATHA_VACHAK`. Sorted by **createdAt** desc. Test script sets **collaborator_id** from first row."
           }
         },
         {
@@ -685,7 +685,7 @@
     },
     {
       "name": "Suggestion",
-      "description": "All responses include **user** (safe profile: `_id`, `userName`, `email`, `role`, `roleName`, `phoneNumber`, `profileImage`, `gender`, `age`, `language`, etc. — no password or tokens).",
+      "description": "All responses include **user**: `_id`, `userName`, `email`, `role`, `roleName`, `phoneNumber`, `profileImage`, `gender`, `genderName`, `deviceType`, `deviceTypeName`, `provider`, `socialId`, `providerId`, `address`, `language`, … — no password or tokens.",
       "item": [
         {
           "name": "Create Suggestion",
@@ -826,6 +826,7 @@
     },
     {
       "name": "Subscription",
+      "description": "Every response includes **user**: safe profile (`userName`, `email`, `role`, `roleName`, `phoneNumber`, `profileImage`, `gender` + `genderName`, `deviceType` + `deviceTypeName`, `provider`, `socialId`, `providerId`, …). No password / tokens.",
       "item": [
         {
           "name": "Purchase Subscription",
@@ -837,20 +838,20 @@
               "raw": "{\n  \"planId\": \"{{plan_id}}\",\n  \"paymentReference\": \"razorpay_order_xxx\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/subscription/purchase",
-            "description": "Run **Get All Plans** first to fill **{{plan_id}}**, or paste a plan Mongo id."
+            "description": "Returns **subscription** + **user**. Run **Get All Plans** first to fill **{{plan_id}}**."
           }
         },
         {
           "name": "Confirm Payment",
           "request": {
             "method": "PUT",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"paymentReference\": \"razorpay_payment_xxx\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/subscription/:id/confirm-payment",
-            "description": "Activate subscription. Also supports: /subscription/purchase/:id/confirm-payment"
+            "description": "Returns **subscription** + **user**. Replace `:id` with subscription _id. Also: `PUT /subscription/purchase/:id/confirm-payment`."
           }
         },
         {
@@ -859,7 +860,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/subscription/active",
-            "description": "Returns **subscription** (or null) and **user** (safe profile: no password/tokens). **user** is always present for the authenticated account."
+            "description": "Returns **subscription** (or null) and **user** (always for the auth account)."
           }
         },
         {
@@ -877,7 +878,7 @@
                 {"key": "status", "value": "2", "disabled": true}
               ]
             },
-            "description": "Returns **subscriptions**, pagination fields, and **user** (safe profile for the authenticated user)."
+            "description": "Returns **subscriptions**, pagination, and **user**."
           }
         },
         {
@@ -886,7 +887,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/subscription/:id",
-            "description": "Get single subscription by ID"
+            "description": "Returns **subscription** + **user**."
           }
         }
       ]
@@ -1222,8 +1223,19 @@
           "request": {
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
-            "url": "{{baseUrl}}/api/v1/enrollment",
-            "description": "Requires Bearer. Lists enrollments whose **course.identifierId** matches a product key under RevenueCat **subscriber.non_subscriptions** (same id as non-consumable / one-time product in RC). Response includes **revenueCat** meta: `applied`, `subscriberFound`, `nonSubscriptionProductKeys`, optional `requestDate`. If **REVENUE_CAT_TOKEN** is missing, all DB enrollments are returned and `revenueCat.reason` is `revenuecat_not_configured`. If the RC request fails, all enrollments are returned and `revenueCat.error` is set. Each item: course + videos + myRating. Saves first enrollment _id to {{enrollment_id}}."
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/enrollment?productIds=vocal_course,abc_product",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "enrollment"],
+              "query": [
+                {
+                  "key": "productIds",
+                  "value": "vocal_course,abc_product",
+                  "description": "Optional. Comma-separated — keep only enrollments where course.identifierId matches one of these (trimmed). When set, list is filtered from your DB enrollments first; RevenueCat keys are still returned in revenueCat for reference."
+                }
+              ]
+            },
+            "description": "Requires Bearer. **Query `productIds`**: e.g. `vocal_course,abc_product` — returns only rows whose **course.identifierId** is in that list (from all your enrollments). Omit **productIds** to use RevenueCat-only filter (non_subscriptions keys) when token is set. Response **revenueCat**: `mode` (`product_ids_query` | `revenuecat_non_subscriptions` | `none`), `requestedProductIds`, `nonSubscriptionProductKeys`, etc. Each item: course + videos + myRating. Saves first enrollment _id to {{enrollment_id}}."
           }
         },
         {

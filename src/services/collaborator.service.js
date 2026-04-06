@@ -1,4 +1,5 @@
 import Collaborator from "../models/collaborator.model.js";
+import { professionNumberToKey } from "../utils/enum.js";
 
 export const getCollaboratorById = async (id) => {
   return await Collaborator.findById(id);
@@ -7,6 +8,13 @@ export const getCollaboratorById = async (id) => {
 export const getAllCollaborators = async () => {
   return await Collaborator.find().sort({ createdAt: -1 });
 };
+
+function withProfessionValue(doc) {
+  if (!doc) return doc;
+  const o = doc.toObject ? doc.toObject() : { ...doc };
+  o.professionValue = professionNumberToKey(o.profession);
+  return o;
+}
 
 const addCollaborator = async (req) => {
   try {
@@ -20,7 +28,7 @@ const addCollaborator = async (req) => {
     });
 
     await newCollaborator.save();
-    return newCollaborator;
+    return withProfessionValue(newCollaborator);
   } catch (error) {
     console.error("Add Collaborator Error:", error);
     throw new Error(error.message || "Failed to add collaborator");
@@ -43,7 +51,7 @@ const updateCollaborator = async (req) => {
     if (profession) collaborator.profession = profession;
 
     await collaborator.save();
-    return collaborator;
+    return withProfessionValue(collaborator);
   } catch (error) {
     console.error("Update Collaborator Error:", error);
     throw new Error(error.message || "Failed to update collaborator");
@@ -59,7 +67,7 @@ const getCollaboratorByIdService = async (req) => {
       throw new Error("Collaborator not found");
     }
     
-    return collaborator;
+    return withProfessionValue(collaborator);
   } catch (error) {
     console.error("Get Collaborator Error:", error);
     throw new Error(error.message || "Failed to get collaborator");
@@ -69,7 +77,7 @@ const getCollaboratorByIdService = async (req) => {
 const getAllCollaboratorsService = async (req) => {
   try {
     const collaborators = await getAllCollaborators();
-    return collaborators;
+    return collaborators.map((c) => withProfessionValue(c));
   } catch (error) {
     console.error("Get All Collaborators Error:", error);
     throw new Error(error.message || "Failed to get collaborators");
@@ -83,7 +91,7 @@ const deleteCollaborator = async (req) => {
     if (!collaborator) {
       throw new Error("Collaborator not found");
     }
-    return collaborator;
+    return withProfessionValue(collaborator);
   } catch (error) {
     console.error("Delete Collaborator Error:", error);
     throw new Error(error.message || "Failed to delete collaborator");

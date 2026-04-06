@@ -35,6 +35,19 @@ const enrichEnrollmentWithVideos = async (enrollment, userId) => {
   return out;
 };
 
+/** Comma-separated product ids from ?productIds=vocal_course,abc_product */
+function parseProductIdsQuery(productIds) {
+  if (productIds == null || String(productIds).trim() === "") {
+    return new Set();
+  }
+  return new Set(
+    String(productIds)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+}
+
 const enrichEnrollmentsListWithVideos = async (enrollments, userId) => {
   if (!enrollments?.length) return enrollments;
   const ids = enrollments.map((e) => e.course?._id).filter(Boolean);
@@ -130,13 +143,47 @@ const getUserEnrollments = async (req) => {
     const userId = req.userId;
     let enrollments = await Enrollment.getUserEnrollments(userId);
 
+    const productIdSet = parseProductIdsQuery(req.query?.productIds);
+
     const revenueCat = {
       applied: false,
       subscriberFound: null,
       nonSubscriptionProductKeys: [],
+      mode: "none",
+      requestedProductIds: [],
     };
 
-    if (process.env.REVENUE_CAT_TOKEN) {
+    if (productIdSet.size > 0) {
+      revenueCat.mode = "product_ids_query";
+      revenueCat.applied = true;
+      revenueCat.requestedProductIds = [...productIdSet];
+      enrollments = filterEnrollmentsByRevenueCatProducts(
+        enrollments,
+        productIdSet
+      );
+
+      if (process.env.REVENUE_CAT_TOKEN) {
+        try {
+          const rcJson = await fetchRevenueCatSubscriber(userId);
+          if (rcJson === null) {
+            revenueCat.subscriberFound = false;
+            revenueCat.nonSubscriptionProductKeys = [];
+          } else {
+            if (rcJson.request_date) revenueCat.requestDate = rcJson.request_date;
+            revenueCat.subscriberFound = true;
+            revenueCat.nonSubscriptionProductKeys = [
+              ...extractNonSubscriptionProductKeys(rcJson),
+            ];
+          }
+        } catch (err) {
+          revenueCat.revenueCatError = err.message || "RevenueCat request failed";
+          revenueCat.subscriberFound = null;
+        }
+      } else {
+        revenueCat.reason = "revenuecat_not_configured";
+      }
+    } else if (process.env.REVENUE_CAT_TOKEN) {
+      revenueCat.mode = "revenuecat_non_subscriptions";
       try {
         const rcJson = await fetchRevenueCatSubscriber(userId);
         if (rcJson === null) {

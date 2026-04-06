@@ -34,11 +34,14 @@ const purchaseSubscription = async (req) => {
 
     await subscription.save();
 
-    const populated = await Subscription.findById(subscription._id)
-      .populate("planId", "title price currency durationMonths discountPercentage")
-      .lean();
+    const [populated, user] = await Promise.all([
+      Subscription.findById(subscription._id)
+        .populate("planId", "title price currency durationMonths discountPercentage")
+        .lean(),
+      getPublicUserById(userId),
+    ]);
 
-    return populated;
+    return { subscription: populated, user };
   } catch (error) {
     throw error;
   }
@@ -78,11 +81,14 @@ const confirmPayment = async (req) => {
 
     await subscription.save();
 
-    const populated = await Subscription.findById(subscription._id)
-      .populate("planId", "title price currency durationMonths discountPercentage")
-      .lean();
+    const [populated, user] = await Promise.all([
+      Subscription.findById(subscription._id)
+        .populate("planId", "title price currency durationMonths discountPercentage")
+        .lean(),
+      getPublicUserById(userId),
+    ]);
 
-    return populated;
+    return { subscription: populated, user };
   } catch (error) {
     throw error;
   }
@@ -139,7 +145,10 @@ const getSubscriptionByIdService = async (req) => {
       throw new Error("Unauthorized to view this subscription.");
     }
 
-    return subscription;
+    const lean =
+      subscription.toObject?.() ?? subscription;
+    const user = await getPublicUserById(userId);
+    return { subscription: lean, user };
   } catch (error) {
     throw error;
   }

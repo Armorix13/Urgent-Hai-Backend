@@ -13,7 +13,11 @@ enrollmentRoute.post(
   validate(enrollmentSchema.enrollSchema),
   enrollmentController.enroll
 );
-enrollmentRoute.get("/", enrollmentController.getUserEnrollments);
+enrollmentRoute.get(
+  "/",
+  validate(enrollmentSchema.getUserEnrollmentsSchema),
+  enrollmentController.getUserEnrollments
+);
 enrollmentRoute.get(
   "/:id",
   validate(enrollmentSchema.getEnrollmentByIdSchema),

@@ -28,8 +28,16 @@ const getEnrollmentByIdSchema = {
   params: Joi.object().keys({ id: objectId.required() }),
 };
 
+/** GET /enrollment?productIds=vocal_course,abc_product — optional comma-separated course.identifierId values */
+const getUserEnrollmentsSchema = {
+  query: Joi.object().keys({
+    productIds: Joi.string().trim().allow("").optional(),
+  }),
+};
+
 export default {
   enrollSchema,
   updateProgressSchema,
   getEnrollmentByIdSchema,
+  getUserEnrollmentsSchema,
 };
