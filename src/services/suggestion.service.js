@@ -1,5 +1,18 @@
 import Suggestion from "../models/suggestion.model.js";
-import { getPublicUserById } from "../utils/userPublic.util.js";
+import {
+  PUBLIC_USER_SELECT,
+  enrichPopulatedUserFieldAndSplit,
+  enrichPopulatedUserFieldsAndSplit,
+} from "../utils/userPublic.util.js";
+
+/** Authenticated user may only load suggestions for their own user id. */
+function assertOwnUserId(req, targetUserId) {
+  if (String(targetUserId) !== String(req.userId)) {
+    const err = new Error("Unauthorized to view suggestions for this user");
+    err.statusCode = 403;
+    throw err;
+  }
+}
 
 export const getSuggestionById = async (id) => {
   return await Suggestion.findById(id);
@@ -17,11 +30,10 @@ const createSuggestion = async (req) => {
     });
 
     await suggestion.save();
-    const [lean, user] = await Promise.all([
-      Suggestion.findById(suggestion._id).lean(),
-      getPublicUserById(userId),
-    ]);
-    return { suggestion: lean, user };
+    const lean = await Suggestion.findById(suggestion._id)
+      .populate("userId", PUBLIC_USER_SELECT)
+      .lean();
+    return { suggestion: enrichPopulatedUserFieldAndSplit(lean, "userId") };
   } catch (error) {
     console.error("Create Suggestion Error:", error);
     throw new Error(error.message || "Failed to create suggestion");
@@ -31,11 +43,13 @@ const createSuggestion = async (req) => {
 const getAllSuggestions = async (req) => {
   try {
     const userId = req.userId;
-    const [suggestions, user] = await Promise.all([
-      Suggestion.find({ userId }).sort({ createdAt: -1 }).lean(),
-      getPublicUserById(userId),
-    ]);
-    return { suggestions, user };
+    const suggestions = await Suggestion.find({ userId })
+      .populate("userId", PUBLIC_USER_SELECT)
+      .sort({ createdAt: -1 })
+      .lean();
+    return {
+      suggestions: enrichPopulatedUserFieldsAndSplit(suggestions, "userId"),
+    };
   } catch (error) {
     console.error("Get All Suggestions Error:", error);
     throw new Error(error.message || "Failed to get suggestions");
@@ -56,13 +70,31 @@ const getSuggestionByIdService = async (req) => {
       throw new Error("Unauthorized to view this suggestion");
     }
 
-    const [lean, user] = await Promise.all([
-      Suggestion.findById(id).lean(),
-      getPublicUserById(userId),
-    ]);
-    return { suggestion: lean, user };
+    const lean = await Suggestion.findById(id)
+      .populate("userId", PUBLIC_USER_SELECT)
+      .lean();
+    return { suggestion: enrichPopulatedUserFieldAndSplit(lean, "userId") };
   } catch (error) {
     throw new Error(error.message || "Failed to get suggestion");
+  }
+};
+
+const getSuggestionsByUserId = async (req) => {
+  try {
+    const { userId: targetUserId } = req.params;
+    assertOwnUserId(req, targetUserId);
+
+    const suggestions = await Suggestion.find({ userId: targetUserId })
+      .populate("userId", PUBLIC_USER_SELECT)
+      .sort({ createdAt: -1 })
+      .lean();
+    return {
+      suggestions: enrichPopulatedUserFieldsAndSplit(suggestions, "userId"),
+    };
+  } catch (error) {
+    console.error("Get suggestions by user Error:", error);
+    if (error.statusCode) throw error;
+    throw new Error(error.message || "Failed to get suggestions");
   }
 };
 
@@ -85,11 +117,10 @@ const updateSuggestion = async (req) => {
     if (description !== undefined) suggestion.description = description;
 
     await suggestion.save();
-    const [lean, user] = await Promise.all([
-      Suggestion.findById(id).lean(),
-      getPublicUserById(userId),
-    ]);
-    return { suggestion: lean, user };
+    const lean = await Suggestion.findById(id)
+      .populate("userId", PUBLIC_USER_SELECT)
+      .lean();
+    return { suggestion: enrichPopulatedUserFieldAndSplit(lean, "userId") };
   } catch (error) {
     console.error("Update Suggestion Error:", error);
     throw new Error(error.message || "Failed to update suggestion");
@@ -111,8 +142,7 @@ const deleteSuggestion = async (req) => {
     }
 
     await Suggestion.findByIdAndDelete(id);
-    const user = await getPublicUserById(userId);
-    return { user };
+    return {};
   } catch (error) {
     console.error("Delete Suggestion Error:", error);
     throw new Error(error.message || "Failed to delete suggestion");
@@ -122,6 +152,7 @@ const deleteSuggestion = async (req) => {
 export const suggestionService = {
   createSuggestion,
   getAllSuggestions,
+  getSuggestionsByUserId,
   getSuggestionById: getSuggestionByIdService,
   updateSuggestion,
   deleteSuggestion,

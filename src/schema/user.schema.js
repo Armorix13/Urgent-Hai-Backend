@@ -275,6 +275,13 @@ const resetPasswordSchema = {
   }),
 };
 
+const getAllUsersSchema = {
+  query: Joi.object({
+    page: Joi.number().integer().min(1).optional(),
+    limit: Joi.number().integer().min(1).max(100).optional(),
+  }),
+};
+
 const userValidationSchemas = {
   registerUserSchema,
   loginUserSchema,
@@ -284,6 +291,7 @@ const userValidationSchemas = {
   updateUserSchema,
   changePasswordSchema,
   resetPasswordSchema,
+  getAllUsersSchema,
 };
 
 export default userValidationSchemas;

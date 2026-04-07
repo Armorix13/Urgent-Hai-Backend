@@ -8,27 +8,32 @@ const objectId = Joi.string().custom((value, helpers) => {
   return value;
 }, "ObjectId validation");
 
+const professionString = Joi.string().trim().min(1).max(120);
+
 const addCollaboratorSchema = {
-  body: Joi.object().keys({
-    name: Joi.string().max(100).required().messages({
-      "string.max": "Name must be at most 100 characters long.",
-      "any.required": "Name is required.",
-      "string.empty": "Name cannot be empty.",
+  body: Joi.object()
+    .keys({
+      name: Joi.string().max(100).required().messages({
+        "string.max": "Name must be at most 100 characters long.",
+        "any.required": "Name is required.",
+        "string.empty": "Name cannot be empty.",
+      }),
+      profile: Joi.string().required().messages({
+        "any.required": "Profile is required.",
+        "string.empty": "Profile cannot be empty.",
+      }),
+      phoneNumber: Joi.string().pattern(/^[0-9+\-\s()]+$/).required().messages({
+        "string.pattern.base": "Phone number must contain only numbers, +, -, spaces, and parentheses.",
+        "any.required": "Phone number is required.",
+        "string.empty": "Phone number cannot be empty.",
+      }),
+      profession: professionString.optional(),
+      professionValue: professionString.optional(),
+    })
+    .or("profession", "professionValue")
+    .messages({
+      "object.missing": "Either profession or professionValue is required.",
     }),
-    profile: Joi.string().required().messages({
-      "any.required": "Profile is required.",
-      "string.empty": "Profile cannot be empty.",
-    }),
-    phoneNumber: Joi.string().pattern(/^[0-9+\-\s()]+$/).required().messages({
-      "string.pattern.base": "Phone number must contain only numbers, +, -, spaces, and parentheses.",
-      "any.required": "Phone number is required.",
-      "string.empty": "Phone number cannot be empty.",
-    }),
-    profession: Joi.number().valid(1, 2, 3).required().messages({
-      "any.only": "Profession must be one of: Raagi (1), Dhadhi (2), or Katha Vachak (3).",
-      "any.required": "Profession is required.",
-    }),
-  }),
 };
 
 const updateCollaboratorSchema = {
@@ -47,9 +52,8 @@ const updateCollaboratorSchema = {
       "string.pattern.base": "Phone number must contain only numbers, +, -, spaces, and parentheses.",
       "string.empty": "Phone number cannot be empty.",
     }),
-    profession: Joi.number().valid(1, 2, 3).optional().messages({
-      "any.only": "Profession must be one of: Raagi (1), Dhadhi (2), or Katha Vachak (3).",
-    }),
+    profession: professionString.optional(),
+    professionValue: professionString.optional(),
   }),
 };
 

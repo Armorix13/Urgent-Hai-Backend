@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Raag App API",
-    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.",
+    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `user_id` | Set after **Login** / **Social Login** (test script) — used for **Get Suggestions by User ID** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** (only when enrollment has `_id`) |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n- **GET /user/all** — any authenticated user (Bearer).\n\n---\n\n### Subscription & suggestion user payload\n\n- **subscription** / **suggestion** documents include **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No top-level duplicate `user` key.\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.\n\n**GET /enrollment?productIds=…** — Resolves **courses** by `identifierId` from the Course model; merges your enrollment when it exists. Catalog-only rows use `catalogOnly: true`, `isEnrolled: false` (no enrollment `_id`). Omit `productIds` for full list / RevenueCat mode when configured.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -35,6 +35,10 @@
     },
     {
       "key": "collaborator_id",
+      "value": ""
+    },
+    {
+      "key": "user_id",
       "value": ""
     }
   ],
@@ -78,6 +82,9 @@
                   "    if (json.user && json.user.access_token) {",
                   "        pm.collectionVariables.set('access_token', json.user.access_token);",
                   "    }",
+                  "    if (json.user && json.user._id) {",
+                  "        pm.collectionVariables.set('user_id', json.user._id);",
+                  "    }",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -108,6 +115,9 @@
                   "    if (json.user && json.user.access_token) {",
                   "        pm.collectionVariables.set('access_token', json.user.access_token);",
                   "    }",
+                  "    if (json.user && json.user._id) {",
+                  "        pm.collectionVariables.set('user_id', json.user._id);",
+                  "    }",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -133,6 +143,23 @@
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/user/user-detail",
             "description": "Get current user profile + subscription + currentPlan + isPremium"
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/all?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "user", "all"],
+              "query": [
+                {"key": "page", "value": "1", "description": "Page number (default 1)"},
+                {"key": "limit", "value": "20", "description": "Page size, max 100"}
+              ]
+            },
+            "description": "**GET /api/v1/user/all** — Requires Bearer. Returns paginated **users** (public profile fields + `roleName`, `genderName`, `deviceTypeName`), **total**, **page**, **totalPages**. Any authenticated user."
           }
         },
         {
@@ -581,7 +608,7 @@
     },
     {
       "name": "Collaborator",
-      "description": "Collaborator: **name**, **profile**, **phoneNumber**, **profession** (stored 1|2|3), **professionValue** (`RAAGI` | `DHADHI` | `KATHA_VACHAK` — keys from `professionType`). No references from other models — delete is a hard remove. Auth middleware is commented out in routes (enable in **collaborator.route.js** if needed).",
+      "description": "Collaborator: **name**, **profile**, **phoneNumber**, **profession** (string, stored in DB). On create, send **profession** or **professionValue** (same meaning). Responses include both **profession** and **professionValue** (mirrored). No references from other models — delete is a hard remove. Auth middleware is commented out in routes (enable in **collaborator.route.js** if needed).",
       "item": [
         {
           "name": "Add Collaborator",
@@ -606,10 +633,10 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"profile\": \"/image/profile.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"profession\": 1\n}"
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"profile\": \"/image/profile.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"professionValue\": \"RAAGI\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/collaborator/add",
-            "description": "**POST /collaborator/add** — Creates document. Test script saves **collaborator_id** on 201."
+            "description": "**POST /collaborator/add** — Send **profession** or **professionValue** (string, required one of). Test script saves **collaborator_id** on 201."
           }
         },
         {
@@ -632,7 +659,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/collaborator/get-all",
-            "description": "**GET /collaborator/get-all** — Each item includes **profession** (1|2|3) and **professionValue** enum key string: `RAAGI` | `DHADHI` | `KATHA_VACHAK`. Sorted by **createdAt** desc. Test script sets **collaborator_id** from first row."
+            "description": "**GET /collaborator/get-all** — Each item includes **profession** (string) and **professionValue** (same value). Sorted by **createdAt** desc. Test script sets **collaborator_id** from first row."
           }
         },
         {
@@ -666,10 +693,10 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phoneNumber\": \"9876543210\"\n}"
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phoneNumber\": \"9876543210\",\n  \"profession\": \"KATHA_VACHAK\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/collaborator/update/{{collaborator_id}}",
-            "description": "**PUT /collaborator/update/:id** — Partial body; only provided fields update."
+            "description": "**PUT /collaborator/update/:id** — Partial body. Use **profession** or **professionValue** to update the stored profession string."
           }
         },
         {
@@ -685,7 +712,7 @@
     },
     {
       "name": "Suggestion",
-      "description": "All responses include **user**: `_id`, `userName`, `email`, `role`, `roleName`, `phoneNumber`, `profileImage`, `gender`, `genderName`, `deviceType`, `deviceTypeName`, `provider`, `socialId`, `providerId`, `address`, `language`, … — no password or tokens.",
+      "description": "Each suggestion includes **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No separate top-level `user` key.\n\n**GET /suggestion/user/:userId** — Only the **own** user id (must match `{{user_id}}` from JWT).",
       "item": [
         {
           "name": "Create Suggestion",
@@ -697,7 +724,7 @@
               "raw": "{\n  \"title\": \"Add dark mode\",\n  \"description\": \"It would be great to have a dark theme option for the app.\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/suggestion",
-            "description": "Returns **suggestion** + **user**."
+            "description": "Returns **suggestion** with `userId` + `user`."
           }
         },
         {
@@ -706,7 +733,16 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/suggestion",
-            "description": "Returns **suggestions** + **user**."
+            "description": "Returns **suggestions** for the current user (each with `userId` + `user`)."
+          }
+        },
+        {
+          "name": "Get Suggestions by User ID",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/suggestion/user/{{user_id}}",
+            "description": "**GET /api/v1/suggestion/user/:userId** — Only your own id (`{{user_id}}` from Login). 403 if path param ≠ token user."
           }
         },
         {
@@ -715,7 +751,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/suggestion/:id",
-            "description": "Returns **suggestion** + **user**."
+            "description": "Returns **suggestion** with `userId` + `user`."
           }
         },
         {
@@ -728,7 +764,7 @@
               "raw": "{\n  \"title\": \"Updated title\",\n  \"description\": \"Updated description\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/suggestion/:id",
-            "description": "Returns **suggestion** + **user**."
+            "description": "Returns **suggestion** with `userId` + `user`."
           }
         },
         {
@@ -737,7 +773,7 @@
             "method": "DELETE",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/suggestion/:id",
-            "description": "Returns **user** only (suggestion removed)."
+            "description": "Success only; **message** + **success** (no `user` payload)."
           }
         }
       ]
@@ -826,7 +862,7 @@
     },
     {
       "name": "Subscription",
-      "description": "Every response includes **user**: safe profile (`userName`, `email`, `role`, `roleName`, `phoneNumber`, `profileImage`, `gender` + `genderName`, `deviceType` + `deviceTypeName`, `provider`, `socialId`, `providerId`, …). No password / tokens.",
+      "description": "Each **subscription** includes **`userId`** (string) and nested **`user`** (public profile). No top-level `user` key. No password / tokens in `user`.",
       "item": [
         {
           "name": "Purchase Subscription",
@@ -838,7 +874,7 @@
               "raw": "{\n  \"planId\": \"{{plan_id}}\",\n  \"paymentReference\": \"razorpay_order_xxx\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/subscription/purchase",
-            "description": "Returns **subscription** + **user**. Run **Get All Plans** first to fill **{{plan_id}}**."
+            "description": "Returns **subscription** with `userId` + `user`. Run **Get All Plans** first to fill **{{plan_id}}**."
           }
         },
         {
@@ -851,7 +887,7 @@
               "raw": "{\n  \"paymentReference\": \"razorpay_payment_xxx\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/subscription/:id/confirm-payment",
-            "description": "Returns **subscription** + **user**. Replace `:id` with subscription _id. Also: `PUT /subscription/purchase/:id/confirm-payment`."
+            "description": "Returns **subscription** with `userId` + `user`. Replace `:id` with subscription _id. Also: `PUT /subscription/purchase/:id/confirm-payment`."
           }
         },
         {
@@ -860,7 +896,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/subscription/active",
-            "description": "Returns **subscription** (or null) and **user** (always for the auth account)."
+            "description": "Returns **subscription** (or null). When present, includes `userId` + `user`."
           }
         },
         {
@@ -878,7 +914,7 @@
                 {"key": "status", "value": "2", "disabled": true}
               ]
             },
-            "description": "Returns **subscriptions**, pagination, and **user**."
+            "description": "Returns **subscriptions** (each with `userId` + `user`), **total**, **page**, **totalPages**."
           }
         },
         {
@@ -887,7 +923,7 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/subscription/:id",
-            "description": "Returns **subscription** + **user**."
+            "description": "Returns **subscription** with `userId` + `user`."
           }
         }
       ]
@@ -1231,11 +1267,11 @@
                 {
                   "key": "productIds",
                   "value": "vocal_course,abc_product",
-                  "description": "Optional. Comma-separated — keep only enrollments where course.identifierId matches one of these (trimmed). When set, list is filtered from your DB enrollments first; RevenueCat keys are still returned in revenueCat for reference."
+                  "description": "Optional. Comma-separated or repeat param. Matches **course.identifierId** case-insensitively. Alias: **product_ids**."
                 }
               ]
             },
-            "description": "Requires Bearer. **Query `productIds`**: e.g. `vocal_course,abc_product` — returns only rows whose **course.identifierId** is in that list (from all your enrollments). Omit **productIds** to use RevenueCat-only filter (non_subscriptions keys) when token is set. Response **revenueCat**: `mode` (`product_ids_query` | `revenuecat_non_subscriptions` | `none`), `requestedProductIds`, `nonSubscriptionProductKeys`, etc. Each item: course + videos + myRating. Saves first enrollment _id to {{enrollment_id}}."
+            "description": "Requires Bearer. **?productIds=** — Loads **courses** from DB by **identifierId** (case-insensitive), merges enrollment when present; **catalogOnly** rows without enrollment still include course + videos. **revenueCat** + **catalogCoursesFound** / **catalogOnlyCount** when applicable. Omit **productIds** for full enrollment list or RevenueCat non-subscriptions when **REVENUE_CAT_TOKEN** is set. **product_ids** alias supported."
           }
         },
         {

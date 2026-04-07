@@ -4,10 +4,32 @@ import {
   subscriptionStatusType,
   paymentStatusType,
 } from "../utils/enum.js";
-import { getPublicUserById } from "../utils/userPublic.util.js";
+import {
+  PUBLIC_USER_SELECT,
+  enrichPopulatedUserFieldAndSplit,
+  enrichPopulatedUserFieldsAndSplit,
+} from "../utils/userPublic.util.js";
+
+const planSelect = "title price currency durationMonths discountPercentage";
+
+function refUserIdString(ref) {
+  if (!ref) return "";
+  if (typeof ref === "object" && ref._id) return ref._id.toString();
+  return ref.toString();
+}
+
+async function findSubscriptionLeanWithUser(id) {
+  const sub = await Subscription.findById(id)
+    .populate("planId", planSelect)
+    .populate("userId", PUBLIC_USER_SELECT)
+    .lean();
+  return sub ? enrichPopulatedUserFieldAndSplit(sub, "userId") : null;
+}
 
 export const getSubscriptionById = async (id) => {
-  return await Subscription.findById(id).populate("planId", "title price currency durationMonths discountPercentage");
+  return await Subscription.findById(id)
+    .populate("planId", planSelect)
+    .populate("userId", PUBLIC_USER_SELECT);
 };
 
 const purchaseSubscription = async (req) => {
@@ -34,14 +56,8 @@ const purchaseSubscription = async (req) => {
 
     await subscription.save();
 
-    const [populated, user] = await Promise.all([
-      Subscription.findById(subscription._id)
-        .populate("planId", "title price currency durationMonths discountPercentage")
-        .lean(),
-      getPublicUserById(userId),
-    ]);
-
-    return { subscription: populated, user };
+    const populated = await findSubscriptionLeanWithUser(subscription._id);
+    return { subscription: populated };
   } catch (error) {
     throw error;
   }
@@ -81,14 +97,8 @@ const confirmPayment = async (req) => {
 
     await subscription.save();
 
-    const [populated, user] = await Promise.all([
-      Subscription.findById(subscription._id)
-        .populate("planId", "title price currency durationMonths discountPercentage")
-        .lean(),
-      getPublicUserById(userId),
-    ]);
-
-    return { subscription: populated, user };
+    const populated = await findSubscriptionLeanWithUser(subscription._id);
+    return { subscription: populated };
   } catch (error) {
     throw error;
   }
@@ -108,23 +118,22 @@ const getAllSubscriptions = async (req) => {
       filter.status = status;
     }
 
-    const [subscriptions, total, user] = await Promise.all([
+    const [subscriptions, total] = await Promise.all([
       Subscription.find(filter)
-        .populate("planId", "title price currency durationMonths discountPercentage")
+        .populate("planId", planSelect)
+        .populate("userId", PUBLIC_USER_SELECT)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       Subscription.countDocuments(filter),
-      getPublicUserById(userId),
     ]);
 
     return {
-      subscriptions,
+      subscriptions: enrichPopulatedUserFieldsAndSplit(subscriptions, "userId"),
       total,
       page,
       totalPages: Math.ceil(total / limit) || 1,
-      user,
     };
   } catch (error) {
     throw error;
@@ -141,14 +150,13 @@ const getSubscriptionByIdService = async (req) => {
       throw new Error("Subscription not found.");
     }
 
-    if (subscription.userId.toString() !== userId) {
+    if (refUserIdString(subscription.userId) !== userId) {
       throw new Error("Unauthorized to view this subscription.");
     }
 
-    const lean =
-      subscription.toObject?.() ?? subscription;
-    const user = await getPublicUserById(userId);
-    return { subscription: lean, user };
+    const lean = subscription.toObject?.() ?? subscription;
+    const withUser = enrichPopulatedUserFieldAndSplit(lean, "userId");
+    return { subscription: withUser };
   } catch (error) {
     throw error;
   }
@@ -158,19 +166,20 @@ const getActiveSubscription = async (req) => {
   try {
     const userId = req.userId;
 
-    const [subscription, user] = await Promise.all([
-      Subscription.findOne({
-        userId,
-        status: subscriptionStatusType.ACTIVE,
-        expiresAt: { $gt: new Date() },
-      })
-        .populate("planId", "title price currency durationMonths discountPercentage")
-        .sort({ expiresAt: -1 })
-        .lean(),
-      getPublicUserById(userId),
-    ]);
+    const subscription = await Subscription.findOne({
+      userId,
+      status: subscriptionStatusType.ACTIVE,
+      expiresAt: { $gt: new Date() },
+    })
+      .populate("planId", planSelect)
+      .populate("userId", PUBLIC_USER_SELECT)
+      .sort({ expiresAt: -1 })
+      .lean();
 
-    return { subscription: subscription ?? null, user };
+    const enriched = subscription
+      ? enrichPopulatedUserFieldAndSplit(subscription, "userId")
+      : null;
+    return { subscription: enriched };
   } catch (error) {
     throw error;
   }

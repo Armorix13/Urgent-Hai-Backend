@@ -28,11 +28,18 @@ const getEnrollmentByIdSchema = {
   params: Joi.object().keys({ id: objectId.required() }),
 };
 
-/** GET /enrollment?productIds=vocal_course,abc_product — optional comma-separated course.identifierId values */
+/** GET /enrollment?productIds=vocal_course,abc_product (also product_ids; arrays supported) */
 const getUserEnrollmentsSchema = {
-  query: Joi.object().keys({
-    productIds: Joi.string().trim().allow("").optional(),
-  }),
+  query: Joi.object()
+    .keys({
+      productIds: Joi.alternatives()
+        .try(Joi.string().trim().allow(""), Joi.array().items(Joi.string()))
+        .optional(),
+      product_ids: Joi.alternatives()
+        .try(Joi.string().trim().allow(""), Joi.array().items(Joi.string()))
+        .optional(),
+    })
+    .unknown(true),
 };
 
 export default {

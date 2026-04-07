@@ -15,6 +15,13 @@ suggestionRoute.post(
 
 suggestionRoute.get("/", authenticate, suggestionController.getAllSuggestions);
 
+suggestionRoute.get(
+  "/user/:userId",
+  authenticate,
+  validate(suggestionValidationSchemas.getSuggestionsByUserIdSchema),
+  suggestionController.getSuggestionsByUserId
+);
+
 suggestionRoute.get("/:id", authenticate, suggestionController.getSuggestionById);
 
 suggestionRoute.put(

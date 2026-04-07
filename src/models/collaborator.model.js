@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { professionType } from "../utils/enum.js";
 
 const Schema = mongoose.Schema;
 
@@ -17,8 +16,8 @@ const collaboratorSchema = new Schema(
       trim: true,
     },
     profession: {
-      type: Number,
-      enum: [professionType.RAAGI, professionType.DHADHI, professionType.KATHA_VACHAK],
+      type: String,
+      trim: true,
     },
   },
   {

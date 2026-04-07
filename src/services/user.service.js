@@ -1,5 +1,9 @@
 import User from "../models/user.model.js";
 import Subscription from "../models/subscription.model.js";
+import {
+  PUBLIC_USER_SELECT,
+  enrichPublicUser,
+} from "../utils/userPublic.util.js";
 import { forgetpassword, verifyAccount } from "../utils/email.template.js";
 import { helper } from "../utils/helper.js";
 import { sendMessage } from "../utils/sendMessage.js";
@@ -637,6 +641,34 @@ const logoutUser = async (req) => {
   }
 };
 
+const getAllUsers = async (req) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+    const page = parseInt(req.query.page, 10) || 1;
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      User.find({})
+        .select(PUBLIC_USER_SELECT)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments({}),
+    ]);
+
+    const list = users.map((u) => enrichPublicUser(u));
+    return {
+      users: list,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const userService = {
   registerUser,
   loginUser,
@@ -649,4 +681,5 @@ export const userService = {
   changePassword,
   deleteAccount,
   logoutUser,
+  getAllUsers,
 };

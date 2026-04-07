@@ -138,6 +138,19 @@ const logoutUser = async (req, res, next) => {
   }
 };
 
+const getAllUsers = async (req, res, next) => {
+  try {
+    const data = await userService.getAllUsers(req);
+    return res.status(200).json({
+      success: true,
+      message: "Users fetched successfully!",
+      ...data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const userController = {
   registerUser,
   loginUser,
@@ -150,4 +163,5 @@ export const userController = {
   resetPassword,
   deleteAccount,
   logoutUser,
+  getAllUsers,
 };

@@ -42,6 +42,12 @@ userRoute.put(
   authenticate,
   userController.updateUser
 );
+userRoute.get(
+  "/all",
+  authenticate,
+  validate(userValidationSchemas.getAllUsersSchema),
+  userController.getAllUsers
+);
 userRoute.get("/user-detail", authenticate, userController.getUserDetails);
 userRoute.post("/user-logout", authenticate, userController.logoutUser);
 userRoute.put(

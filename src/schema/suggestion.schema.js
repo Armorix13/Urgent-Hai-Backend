@@ -1,5 +1,13 @@
 import Joi from "joi";
 
+const mongoObjectId = Joi.string()
+  .hex()
+  .length(24)
+  .required()
+  .messages({
+    "string.length": "userId must be a valid 24-character id",
+  });
+
 const addSuggestionSchema = {
   body: Joi.object().keys({
     title: Joi.string().trim().max(200).required().messages({
@@ -33,9 +41,16 @@ const updateSuggestionSchema = {
     }),
 };
 
+const getSuggestionsByUserIdSchema = {
+  params: Joi.object({
+    userId: mongoObjectId,
+  }),
+};
+
 const suggestionValidationSchemas = {
   addSuggestionSchema,
   updateSuggestionSchema,
+  getSuggestionsByUserIdSchema,
 };
 
 export default suggestionValidationSchemas;

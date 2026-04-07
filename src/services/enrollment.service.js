@@ -35,17 +35,98 @@ const enrichEnrollmentWithVideos = async (enrollment, userId) => {
   return out;
 };
 
-/** Comma-separated product ids from ?productIds=vocal_course,abc_product */
-function parseProductIdsQuery(productIds) {
-  if (productIds == null || String(productIds).trim() === "") {
-    return new Set();
-  }
-  return new Set(
-    String(productIds)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-  );
+/**
+ * Parses productIds and/or product_ids from query (comma-separated and/or repeated params).
+ * Examples: ?productIds=vocal_course,abc_product  ?productIds=a&productIds=b  ?product_ids=x
+ */
+function parseProductIdsFromQuery(query) {
+  if (!query || typeof query !== "object") return new Set();
+  const parts = [];
+  const pull = (v) => {
+    if (v == null) return;
+    if (Array.isArray(v)) {
+      v.forEach((item) => pull(item));
+      return;
+    }
+    const s = String(v).trim();
+    if (!s) return;
+    s.split(",").forEach((piece) => {
+      const t = piece.trim();
+      if (t) parts.push(t);
+    });
+  };
+  pull(query.productIds);
+  pull(query.product_ids);
+  return new Set(parts);
+}
+
+/** Active courses whose identifierId matches requested product ids (case-insensitive). */
+async function fetchActiveCoursesByProductIdentifiers(productIdSet) {
+  const wantLower = [...productIdSet].map((p) => String(p).trim().toLowerCase());
+  if (!wantLower.length) return [];
+  return Course.find({
+    // isDeleted: false,
+    // isActive: true,
+    identifierId: { $exists: true, $nin: [null, ""] },
+    $expr: {
+      $in: [{ $toLower: "$identifierId" }, wantLower],
+    },
+  })
+    .select(
+      "title identifierId description thumbnail duration level category courseType price courseContent isDeleted tags benefits prerequisites learningOutcomes isActive rating enrollmentCount createdAt updatedAt"
+    )
+    .lean();
+}
+
+function sortCoursesByRequestedOrder(courses, productIdSet) {
+  const order = [...productIdSet].map((p) => String(p).trim().toLowerCase());
+  const rank = (identifierId) => {
+    const i = order.indexOf(String(identifierId).trim().toLowerCase());
+    return i === -1 ? 999 : i;
+  };
+  return [...courses].sort((a, b) => rank(a.identifierId) - rank(b.identifierId));
+}
+
+/**
+ * Build one row per matching course from the Course model: real enrollment if present,
+ * otherwise a catalog-only row (isEnrolled: false) so RevenueCat / productIds still surface the course.
+ */
+async function buildEnrollmentListFromCatalog(userId, productIdSet) {
+  let courses = await fetchActiveCoursesByProductIdentifiers(productIdSet);
+  courses = sortCoursesByRequestedOrder(courses, productIdSet);
+  if (!courses.length) return [];
+
+  const courseIds = courses.map((c) => c._id);
+  const enrollmentRows = await Enrollment.find({
+    user: userId,
+    course: { $in: courseIds },
+    isActive: true,
+    $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+  }).lean();
+
+  const byCourse = new Map(enrollmentRows.map((e) => [e.course.toString(), e]));
+
+  return courses.map((course) => {
+    const e = byCourse.get(course._id.toString());
+    if (e) {
+      return { ...e, course, isEnrolled: true };
+    }
+    // No Enrollment document — omit _id/timestamps so clients don't treat null as a valid id
+    return {
+      user: userId,
+      course,
+      enrolledAt: null,
+      expiresAt: null,
+      isActive: true,
+      isEnrolled: false,
+      catalogOnly: true,
+      progress: {
+        completedLessonOrders: [],
+        lastAccessedAt: new Date(),
+        completionPercentage: 0,
+      },
+    };
+  });
 }
 
 const enrichEnrollmentsListWithVideos = async (enrollments, userId) => {
@@ -141,9 +222,9 @@ const enroll = async (req) => {
 const getUserEnrollments = async (req) => {
   try {
     const userId = req.userId;
-    let enrollments = await Enrollment.getUserEnrollments(userId);
+    let enrollments;
 
-    const productIdSet = parseProductIdsQuery(req.query?.productIds);
+    const productIdSet = parseProductIdsFromQuery(req.query);
 
     const revenueCat = {
       applied: false,
@@ -157,10 +238,9 @@ const getUserEnrollments = async (req) => {
       revenueCat.mode = "product_ids_query";
       revenueCat.applied = true;
       revenueCat.requestedProductIds = [...productIdSet];
-      enrollments = filterEnrollmentsByRevenueCatProducts(
-        enrollments,
-        productIdSet
-      );
+      enrollments = await buildEnrollmentListFromCatalog(userId, productIdSet);
+      revenueCat.catalogCoursesFound = enrollments.length;
+      revenueCat.catalogOnlyCount = enrollments.filter((e) => e.catalogOnly).length;
 
       if (process.env.REVENUE_CAT_TOKEN) {
         try {
@@ -182,33 +262,39 @@ const getUserEnrollments = async (req) => {
       } else {
         revenueCat.reason = "revenuecat_not_configured";
       }
-    } else if (process.env.REVENUE_CAT_TOKEN) {
-      revenueCat.mode = "revenuecat_non_subscriptions";
-      try {
-        const rcJson = await fetchRevenueCatSubscriber(userId);
-        if (rcJson === null) {
-          revenueCat.subscriberFound = false;
-          revenueCat.applied = true;
-          revenueCat.nonSubscriptionProductKeys = [];
-          enrollments = filterEnrollmentsByRevenueCatProducts(
-            enrollments,
-            new Set()
-          );
-        } else {
-          if (rcJson.request_date) revenueCat.requestDate = rcJson.request_date;
-          const keys = extractNonSubscriptionProductKeys(rcJson);
-          revenueCat.subscriberFound = true;
-          revenueCat.applied = true;
-          revenueCat.nonSubscriptionProductKeys = [...keys];
-          enrollments = filterEnrollmentsByRevenueCatProducts(enrollments, keys);
-        }
-      } catch (err) {
-        revenueCat.applied = false;
-        revenueCat.error = err.message || "RevenueCat request failed";
-        revenueCat.subscriberFound = null;
-      }
     } else {
-      revenueCat.reason = "revenuecat_not_configured";
+      enrollments = await Enrollment.getUserEnrollments(userId);
+      if (process.env.REVENUE_CAT_TOKEN) {
+        revenueCat.mode = "revenuecat_non_subscriptions";
+        try {
+          const rcJson = await fetchRevenueCatSubscriber(userId);
+          if (rcJson === null) {
+            revenueCat.subscriberFound = false;
+            revenueCat.applied = true;
+            revenueCat.nonSubscriptionProductKeys = [];
+            enrollments = filterEnrollmentsByRevenueCatProducts(
+              enrollments,
+              new Set()
+            );
+          } else {
+            if (rcJson.request_date) revenueCat.requestDate = rcJson.request_date;
+            const keys = extractNonSubscriptionProductKeys(rcJson);
+            revenueCat.subscriberFound = true;
+            revenueCat.applied = true;
+            revenueCat.nonSubscriptionProductKeys = [...keys];
+            enrollments = filterEnrollmentsByRevenueCatProducts(
+              enrollments,
+              keys
+            );
+          }
+        } catch (err) {
+          revenueCat.applied = false;
+          revenueCat.error = err.message || "RevenueCat request failed";
+          revenueCat.subscriberFound = null;
+        }
+      } else {
+        revenueCat.reason = "revenuecat_not_configured";
+      }
     }
 
     const list = await enrichEnrollmentsListWithVideos(enrollments, userId);

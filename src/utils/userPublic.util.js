@@ -35,3 +35,45 @@ export function enrichPublicUser(u) {
           : null,
   };
 }
+
+/** After `.populate("userId", PUBLIC_USER_SELECT).lean()`, add roleName / genderName / deviceTypeName. */
+export function enrichPopulatedUserField(doc, path = "userId") {
+  if (!doc) return doc;
+  const nested = doc[path];
+  if (nested && typeof nested === "object" && nested._id) {
+    return { ...doc, [path]: enrichPublicUser(nested) };
+  }
+  return doc;
+}
+
+export function enrichPopulatedUserFields(docs, path = "userId") {
+  if (!Array.isArray(docs)) return docs;
+  return docs.map((d) => enrichPopulatedUserField(d, path));
+}
+
+/**
+ * After enrich: `{ userId: "<mongoId>", user: { ...public profile } }`.
+ * Keeps a string `userId` for filters/keys and full `user` for display.
+ */
+export function splitUserRefToIdAndUser(doc, path = "userId") {
+  if (!doc) return doc;
+  const nested = doc[path];
+  if (nested && typeof nested === "object" && nested._id) {
+    return {
+      ...doc,
+      [path]: nested._id.toString(),
+      user: nested,
+    };
+  }
+  return { ...doc, user: null };
+}
+
+export function enrichPopulatedUserFieldAndSplit(doc, path = "userId") {
+  if (!doc) return doc;
+  return splitUserRefToIdAndUser(enrichPopulatedUserField(doc, path), path);
+}
+
+export function enrichPopulatedUserFieldsAndSplit(docs, path = "userId") {
+  if (!Array.isArray(docs)) return docs;
+  return docs.map((d) => enrichPopulatedUserFieldAndSplit(d, path));
+}
