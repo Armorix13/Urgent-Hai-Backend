@@ -1,5 +1,6 @@
 import Enrollment from "../models/enrollment.model.js";
 import Course from "../models/course.model.js";
+import User from "../models/user.model.js";
 import {
   attachVideosToCourseLean,
   fetchVideosForCourse,
@@ -146,10 +147,12 @@ const enrichEnrollmentsListWithVideos = async (enrollments, userId) => {
 };
 
 const enroll = async (req) => {
-  try {
-    const userId = req.userId;
-    const { courseId, transactionId, paymentMethod } = req.body;
+  const userId = req.userId;
+  const { courseId, transactionId, paymentMethod } = req.body;
+  let walletDeducted = 0;
+  let enrollmentPersisted = false;
 
+  try {
     const course = await Course.findById(courseId);
     if (!course) {
       throw new Error("Course not found");
@@ -163,6 +166,9 @@ const enroll = async (req) => {
       throw new Error("Course is not available for enrollment");
     }
 
+    const isPaidCourse = course.courseType === 1;
+    const price = isPaidCourse ? Math.max(0, Number(course.price) || 0) : 0;
+
     const now = new Date();
     const existing = await Enrollment.findOne({ user: userId, course: courseId });
     const stillValid =
@@ -174,12 +180,34 @@ const enroll = async (req) => {
       throw new Error("Already enrolled in this course");
     }
 
+    if (isPaidCourse && price > 0) {
+      const updated = await User.findOneAndUpdate(
+        {
+          _id: userId,
+          $expr: {
+            $gte: [{ $ifNull: ["$wallet", 0] }, price],
+          },
+        },
+        { $inc: { wallet: -price } },
+        { new: true, select: "wallet" }
+      ).lean();
+
+      if (!updated) {
+        const u = await User.findById(userId).select("wallet").lean();
+        const available = Number(u?.wallet ?? 0);
+        throw new Error(
+          `Insufficient wallet balance for enrollment. Required: ${price}, available: ${available}.`
+        );
+      }
+      walletDeducted = price;
+    }
+
     const paymentBlock =
-      course.courseType === 1
+      isPaidCourse
         ? {
             amount: course.price,
-            transactionId: transactionId || null,
-            paymentMethod: paymentMethod || null,
+            transactionId: transactionId || "wallet",
+            paymentMethod: paymentMethod || "wallet",
             paymentDate: new Date(),
           }
         : undefined;
@@ -188,7 +216,7 @@ const enroll = async (req) => {
     if (existing) {
       existing.isActive = true;
       existing.expiresAt = null;
-      existing.enrollmentType = course.courseType === 1 ? "paid" : "free";
+      existing.enrollmentType = isPaidCourse ? "paid" : "free";
       if (paymentBlock) existing.paymentDetails = paymentBlock;
       await existing.save();
       enrollment = existing;
@@ -196,7 +224,7 @@ const enroll = async (req) => {
       const enrollmentData = {
         user: userId,
         course: courseId,
-        enrollmentType: course.courseType === 1 ? "paid" : "free",
+        enrollmentType: isPaidCourse ? "paid" : "free",
         expiresAt: null,
       };
       if (paymentBlock) enrollmentData.paymentDetails = paymentBlock;
@@ -205,6 +233,8 @@ const enroll = async (req) => {
         $inc: { enrollmentCount: 1 },
       });
     }
+
+    enrollmentPersisted = true;
 
     const populated = await Enrollment.findById(enrollment._id)
       .populate(
@@ -215,6 +245,11 @@ const enroll = async (req) => {
 
     return enrichEnrollmentWithVideos(populated, userId);
   } catch (err) {
+    if (walletDeducted > 0 && !enrollmentPersisted) {
+      await User.findByIdAndUpdate(userId, {
+        $inc: { wallet: walletDeducted },
+      }).catch(() => {});
+    }
     throw err;
   }
 };

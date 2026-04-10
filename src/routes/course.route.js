@@ -7,6 +7,13 @@ import courseSchema from "../schema/course.schema.js";
 
 const courseRoute = express.Router();
 
+// Admin-style list: all courses (no isActive / isDeleted filter). No auth middleware — secure at your edge if needed.
+courseRoute.get(
+  "/admin/all",
+  validate(courseSchema.getCoursesSchema),
+  courseController.getCoursesAdmin
+);
+
 // Public (optional Bearer token → unlocks video URLs when allowed)
 courseRoute.get(
   "/",

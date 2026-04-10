@@ -1,4 +1,5 @@
 import Joi from "joi";
+import mongoose from "mongoose";
 
 const registerUserSchema = {
   body: Joi.object().keys({
@@ -282,6 +283,30 @@ const getAllUsersSchema = {
   }),
 };
 
+const addMoneyToWalletSchema = {
+  body: Joi.object({
+    amount: Joi.number().positive().max(1e9).required().messages({
+      "number.positive": "amount must be greater than 0.",
+      "any.required": "amount is required.",
+    }),
+  }),
+};
+
+const objectIdParam = Joi.string().custom((value, helpers) => {
+  if (!mongoose.Types.ObjectId.isValid(value)) {
+    return helpers.error("any.invalid");
+  }
+  return value;
+}, "ObjectId validation");
+
+const getUserByIdSchema = {
+  params: Joi.object({
+    id: objectIdParam.required().messages({
+      "any.required": "id is required.",
+    }),
+  }),
+};
+
 const userValidationSchemas = {
   registerUserSchema,
   loginUserSchema,
@@ -292,6 +317,8 @@ const userValidationSchemas = {
   changePasswordSchema,
   resetPasswordSchema,
   getAllUsersSchema,
+  addMoneyToWalletSchema,
+  getUserByIdSchema,
 };
 
 export default userValidationSchemas;

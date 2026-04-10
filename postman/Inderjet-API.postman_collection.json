@@ -38,6 +38,10 @@
       "value": ""
     },
     {
+      "key": "section_id",
+      "value": ""
+    },
+    {
       "key": "user_id",
       "value": ""
     }
@@ -142,7 +146,38 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": "{{baseUrl}}/api/v1/user/user-detail",
-            "description": "Get current user profile + subscription + currentPlan + isPremium"
+            "description": "Get current user profile + **wallet** + subscription + currentPlan + isPremium"
+          }
+        },
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/user/wallet",
+            "description": "**GET /user/wallet** — Bearer required. Returns `{ wallet }` (number) for the logged-in user only."
+          }
+        },
+        {
+          "name": "Add Money to Wallet",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/user/wallet/add-money",
+            "description": "**POST /user/wallet/add-money** — Body: `{ \"amount\": positive number }` (max 1e9). Atomically increments **wallet**. Returns `{ wallet }` (new balance)."
+          }
+        },
+        {
+          "name": "Get User by ID (profile + suggestions + enrollments)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": "{{baseUrl}}/api/v1/user/{{user_id}}",
+            "description": "**GET /user/:id** — Bearer required. Returns **user** (public profile via `PUBLIC_USER_SELECT` + `roleName` / `genderName` / `deviceTypeName`). **wallet** is included only when you request **your own** id (same as JWT). **suggestions**: that user’s suggestion titles/descriptions (no full user populate). **enrollments**: active, non-expired enrollments with populated **course** (same rules as “my enrollments”). Paste another user’s Mongo id to view their public profile + lists."
           }
         },
         {
@@ -608,7 +643,7 @@
     },
     {
       "name": "Collaborator",
-      "description": "Collaborator: **name**, **profile**, **phoneNumber**, **profession** (string, stored in DB). On create, send **profession** or **professionValue** (same meaning). Responses include both **profession** and **professionValue** (mirrored). No references from other models — delete is a hard remove. Auth middleware is commented out in routes (enable in **collaborator.route.js** if needed).",
+      "description": "Fields: **name**, **profile**, **coverProfile**, **phoneNumber**, **email**, **address**, **profession** (or **professionValue** on create — one required), optional **password** (hashed server-side; never returned). Responses mirror **profession** / **professionValue**; **password** is never included. **GET /collaborator/get/:id** and **GET /collaborator/get-all** include **sections** (full Section docs for that collaborator, sorted by **order** then **createdAt**) and **sectionCount**. Related: **Section** APIs under `/section`. Auth is commented out in routes (enable in **collaborator.route.js** if needed).",
       "item": [
         {
           "name": "Add Collaborator",
@@ -633,7 +668,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"profile\": \"/image/profile.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"professionValue\": \"RAAGI\"\n}"
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"profile\": \"/image/profile.jpg\",\n  \"coverProfile\": \"/image/cover.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"email\": \"john@example.com\",\n  \"address\": \"City, Country\",\n  \"professionValue\": \"RAAGI\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/collaborator/add",
             "description": "**POST /collaborator/add** — Send **profession** or **professionValue** (string, required one of). Test script saves **collaborator_id** on 201."
@@ -659,7 +694,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/collaborator/get-all",
-            "description": "**GET /collaborator/get-all** — Each item includes **profession** (string) and **professionValue** (same value). Sorted by **createdAt** desc. Test script sets **collaborator_id** from first row."
+            "description": "**GET /collaborator/get-all** — Each item includes **sections** (array), **sectionCount**, **profession** / **professionValue**. Collaborators sorted by **createdAt** desc. Test script sets **collaborator_id** from first row."
           }
         },
         {
@@ -683,7 +718,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/v1/collaborator/get/{{collaborator_id}}",
-            "description": "**GET /collaborator/get/:id** — Valid MongoDB ObjectId required."
+            "description": "**GET /collaborator/get/:id** — Includes **sections** (full Section documents) and **sectionCount**. **password** is never returned."
           }
         },
         {
@@ -693,7 +728,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phoneNumber\": \"9876543210\",\n  \"profession\": \"KATHA_VACHAK\"\n}"
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phoneNumber\": \"9876543210\",\n  \"email\": \"updated@example.com\",\n  \"address\": \"New address\",\n  \"coverProfile\": \"/covers/new.jpg\",\n  \"profession\": \"KATHA_VACHAK\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/collaborator/update/{{collaborator_id}}",
             "description": "**PUT /collaborator/update/:id** — Partial body. Use **profession** or **professionValue** to update the stored profession string."
@@ -706,6 +741,79 @@
             "header": [],
             "url": "{{baseUrl}}/api/v1/collaborator/delete/{{collaborator_id}}",
             "description": "**DELETE /collaborator/delete/:id** — Permanently removes the document. Response includes deleted **collaborator** snapshot. Set **{{collaborator_id}}** first (Add / Get All / Get by ID)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Section",
+      "description": "Sections reference **Collaborator** via **collaboratorId**. Each section has nested **content** (title, url, description, thumbnail, duration, order).\n\n- **POST /section** — **Upsert**: no **sectionId** → create; with **sectionId** → update (must belong to **collaboratorId**).\n- **GET /section/collaborator/:collaboratorId** — all sections for that collaborator.\n- **GET /section/:id** — one section (**collaboratorId** populated with safe fields).\n- **DELETE /section/:id** — remove section.",
+      "item": [
+        {
+          "name": "Upsert Section (create)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    if (j.section && j.section._id) pm.collectionVariables.set('section_id', j.section._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"collaboratorId\": \"{{collaborator_id}}\",\n  \"title\": \"Featured performances\",\n  \"description\": \"Section description\",\n  \"order\": 0,\n  \"isActive\": true,\n  \"content\": [\n    {\n      \"title\": \"Video 1\",\n      \"url\": \"https://youtu.be/example\",\n      \"description\": \"Optional\",\n      \"thumbnail\": \"https://example.com/thumb.jpg\",\n      \"duration\": \"5:30\",\n      \"order\": 0\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/section",
+            "description": "**POST /section** — Create. Saves **section_id** on 201. Requires **{{collaborator_id}}**."
+          }
+        },
+        {
+          "name": "Upsert Section (update)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sectionId\": \"{{section_id}}\",\n  \"collaboratorId\": \"{{collaborator_id}}\",\n  \"title\": \"Updated section title\",\n  \"description\": \"Updated description\",\n  \"order\": 1,\n  \"isActive\": true,\n  \"content\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/section",
+            "description": "**POST /section** — Update when **sectionId** is set; **collaboratorId** must match the section owner."
+          }
+        },
+        {
+          "name": "Get Sections by Collaborator",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/section/collaborator/{{collaborator_id}}",
+            "description": "**GET /section/collaborator/:collaboratorId**"
+          }
+        },
+        {
+          "name": "Get Section by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/section/{{section_id}}",
+            "description": "**GET /section/:id** — Populates **collaboratorId**."
+          }
+        },
+        {
+          "name": "Delete Section",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/section/{{section_id}}",
+            "description": "**DELETE /section/:id**"
           }
         }
       ]
@@ -930,8 +1038,29 @@
     },
     {
       "name": "Course",
-      "description": "**courseType:** `1` = paid (require **price**), `2` = free.\n**identifierId** — optional external id (filter: `?identifierId=`).\n**courseContent** — embedded lessons on the Course document.\n**videos** — syncs to **CourseVideo** when this key is present on POST/PUT (full replace). Omit **videos** on PUT to keep existing videos.\n**GET /** returns `courses`, `pagination` (includes `pageSize`), `totalVideosOnPage`.",
+      "description": "**courseType:** `1` = paid (require **price**), `2` = free.\n**identifierId** — optional external id (filter: `?identifierId=`).\n**courseContent** — embedded lessons on the Course document.\n**videos** — syncs to **CourseVideo** when this key is present on POST/PUT (full replace). Omit **videos** on PUT to keep existing videos.\n**GET /** returns `courses`, `pagination` (includes `pageSize`), `totalVideosOnPage`.\n**GET /course/admin/all** — same shape as **GET /** but includes **inactive** and **soft-deleted** (`isDeleted: true`) courses; **no** `isActive` / `isDeleted` filter. **No auth middleware** on the server — protect externally if needed.",
       "item": [
+        {
+          "name": "Get All Courses (Admin — includes inactive & deleted)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/course/admin/all?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "course", "admin", "all"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"},
+                {"key": "search", "value": "", "disabled": true},
+                {"key": "courseType", "value": "", "disabled": true},
+                {"key": "category", "value": "", "disabled": true}
+              ]
+            },
+            "description": "**GET /course/admin/all** — Same query params as **GET /course**. Returns **all** matching documents (no filter on **isActive** or **isDeleted**). Response shape matches public list: `courses`, `pagination`, `totalVideosOnPage`."
+          }
+        },
         {
           "name": "Get All Courses",
           "request": {
@@ -1233,10 +1362,10 @@
             "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"courseId\": \"{{course_id}}\",\n  \"transactionId\": \"txn_123\",\n  \"paymentMethod\": \"razorpay\"\n}"
+              "raw": "{\n  \"courseId\": \"{{course_id}}\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/enrollment",
-            "description": "Requires Bearer. Free course: omit transactionId/paymentMethod. Paid: include them. Uses {{course_id}}. Saves enrollment _id to {{enrollment_id}} on 201."
+            "description": "Requires Bearer. Body: **courseId** (required). **Free course** (courseType 2): enrolls with no wallet change. **Paid course** (courseType 1): wallet must be **>= course.price**; price is deducted atomically (`wallet -= price`). If balance is insufficient, error: `Insufficient wallet balance for enrollment. Required: X, available: Y.` Optional **transactionId** / **paymentMethod**; defaults to wallet in payment details. Saves **enrollment_id** on 201."
           }
         },
         {

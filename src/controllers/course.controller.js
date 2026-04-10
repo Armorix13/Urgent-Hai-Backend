@@ -29,6 +29,22 @@ const getCourses = async (req, res, next) => {
   }
 };
 
+const getCoursesAdmin = async (req, res, next) => {
+  try {
+    const { courses, pagination, totalVideosOnPage } =
+      await courseService.getCoursesWithPaginationAdmin(req);
+    return res.status(200).json({
+      success: true,
+      message: "All courses fetched successfully (admin list).",
+      courses: courses ?? [],
+      pagination: pagination ?? null,
+      totalVideosOnPage: totalVideosOnPage ?? 0,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getCourseById = async (req, res, next) => {
   try {
     const course = await courseService.getCourseById(req);
@@ -97,6 +113,7 @@ const hardDeleteCourse = async (req, res, next) => {
 export const courseController = {
   addCourse,
   getCourses,
+  getCoursesAdmin,
   getCourseById,
   getSimilarCourses,
   updateCourse,

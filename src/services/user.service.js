@@ -1,5 +1,7 @@
 import User from "../models/user.model.js";
 import Subscription from "../models/subscription.model.js";
+import Enrollment from "../models/enrollment.model.js";
+import Suggestion from "../models/suggestion.model.js";
 import {
   PUBLIC_USER_SELECT,
   enrichPublicUser,
@@ -562,8 +564,17 @@ const getUserDetails = async (req) => {
         }
       : null;
 
+    const rawWallet = userWithoutSensitiveData.wallet;
+    const wallet =
+      rawWallet == null || rawWallet === ""
+        ? 0
+        : Number.isFinite(Number(rawWallet))
+          ? Math.max(0, Number(rawWallet))
+          : 0;
+
     return {
       ...userWithoutSensitiveData,
+      wallet,
       subscription,
       currentPlan,
       isPremium: !!activeSubscription,
@@ -669,6 +680,87 @@ const getAllUsers = async (req) => {
   }
 };
 
+const getWallet = async (req) => {
+  try {
+    const userId = req.userId;
+    const user = await User.findById(userId).select("wallet").lean();
+    if (!user) {
+      throw new Error("User not found.");
+    }
+    return { wallet: user.wallet ?? 0 };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getUserProfileById = async (req) => {
+  try {
+    const { id } = req.params;
+    const viewerId = req.userId;
+
+    const userLean = await User.findById(id)
+      .select(`${PUBLIC_USER_SELECT} wallet`)
+      .lean();
+    if (!userLean) {
+      throw new Error("User not found.");
+    }
+
+    const user = enrichPublicUser(userLean);
+    if (String(viewerId) !== String(id)) {
+      delete user.wallet;
+    } else {
+      const w = userLean.wallet;
+      user.wallet =
+        w == null || w === ""
+          ? 0
+          : Number.isFinite(Number(w))
+            ? Math.max(0, Number(w))
+            : 0;
+    }
+
+    const [suggestions, enrollments] = await Promise.all([
+      Suggestion.find({ userId: id })
+        .select("title description createdAt updatedAt")
+        .sort({ createdAt: -1 })
+        .lean(),
+      Enrollment.getUserEnrollments(id),
+    ]);
+
+    return {
+      user,
+      suggestions,
+      enrollments,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const addMoneyToWallet = async (req) => {
+  try {
+    const userId = req.userId;
+    const raw = req.body?.amount;
+    const amount = typeof raw === "number" ? raw : parseFloat(raw);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("amount must be a positive number.");
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { wallet: amount } },
+      { new: true, select: "wallet" }
+    ).lean();
+
+    if (!updated) {
+      throw new Error("User not found.");
+    }
+
+    return { wallet: updated.wallet ?? 0 };
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const userService = {
   registerUser,
   loginUser,
@@ -682,4 +774,7 @@ export const userService = {
   deleteAccount,
   logoutUser,
   getAllUsers,
+  getWallet,
+  addMoneyToWallet,
+  getUserProfileById,
 };

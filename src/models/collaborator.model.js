@@ -11,6 +11,10 @@ const collaboratorSchema = new Schema(
     profile: {
       type: String,
     },
+    coverProfile: {
+      type: String,
+      default: null,
+    },
     phoneNumber: {
       type: String,
       trim: true,
@@ -19,11 +23,38 @@ const collaboratorSchema = new Schema(
       type: String,
       trim: true,
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    password: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+collaboratorSchema.set("toJSON", {
+  transform(_doc, ret) {
+    delete ret.password;
+    return ret;
+  },
+});
+collaboratorSchema.set("toObject", {
+  transform(_doc, ret) {
+    delete ret.password;
+    return ret;
+  },
+});
+
 
 const Collaborator = mongoose.model("Collaborator", collaboratorSchema);
 

@@ -1,4 +1,6 @@
 import Collaborator from "../models/collaborator.model.js";
+import Section from "../models/section.model.js";
+import { helper } from "../utils/helper.js";
 
 export const getCollaboratorById = async (id) => {
   return await Collaborator.findById(id);
@@ -7,6 +9,32 @@ export const getCollaboratorById = async (id) => {
 export const getAllCollaborators = async () => {
   return await Collaborator.find().sort({ createdAt: -1 });
 };
+
+async function fetchSectionsForCollaboratorId(collaboratorId) {
+  return Section.find({ collaboratorId: collaboratorId })
+    .sort({ order: 1, createdAt: -1 })
+    .lean();
+}
+
+/** Batch-load sections keyed by collaboratorId string. */
+async function sectionsGroupedByCollaboratorIds(collaboratorIds) {
+  const ids = [...new Set(collaboratorIds.map((id) => String(id)))].filter(Boolean);
+  const map = new Map(ids.map((id) => [id, []]));
+  if (!ids.length) return map;
+
+  const rows = await Section.find({
+    collaboratorId: { $in: ids },
+  })
+    .sort({ order: 1, createdAt: -1 })
+    .lean();
+
+  for (const s of rows) {
+    const key = String(s.collaboratorId);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(s);
+  }
+  return map;
+}
 
 /** Read profession or professionValue from body (add / update). */
 function resolveProfessionFromBody(body) {
@@ -20,10 +48,11 @@ function resolveProfessionFromBody(body) {
   return s || undefined;
 }
 
-/** Responses include both keys; same stored string in `profession`. */
+/** Responses include both keys; same stored string in `profession`. Never expose password. */
 function withProfessionAliases(doc) {
   if (!doc) return doc;
   const o = doc.toObject ? doc.toObject() : { ...doc };
+  delete o.password;
   if (o.profession != null && o.profession !== "") {
     o.professionValue = o.profession;
   } else {
@@ -34,14 +63,33 @@ function withProfessionAliases(doc) {
 
 const addCollaborator = async (req) => {
   try {
-    const { name, profile, phoneNumber } = req.body;
+    const {
+      name,
+      profile,
+      phoneNumber,
+      email,
+      address,
+      coverProfile,
+      password,
+    } = req.body;
     const profession = resolveProfessionFromBody(req.body);
+
+    let hashedPassword = null;
+    if (password != null && String(password).trim() !== "") {
+      hashedPassword = await helper.hashPassword(String(password));
+    }
 
     const newCollaborator = new Collaborator({
       name,
       profile,
       phoneNumber,
       profession,
+      ...(email != null && String(email).trim() !== ""
+        ? { email: String(email).trim().toLowerCase() }
+        : {}),
+      ...(address !== undefined ? { address } : {}),
+      ...(coverProfile !== undefined ? { coverProfile } : {}),
+      ...(hashedPassword ? { password: hashedPassword } : {}),
     });
 
     await newCollaborator.save();
@@ -55,16 +103,35 @@ const addCollaborator = async (req) => {
 const updateCollaborator = async (req) => {
   try {
     const { id } = req.params;
-    const { name, profile, phoneNumber } = req.body;
+    const {
+      name,
+      profile,
+      phoneNumber,
+      email,
+      address,
+      coverProfile,
+      password,
+    } = req.body;
 
     const collaborator = await getCollaboratorById(id);
     if (!collaborator) {
       throw new Error("Collaborator not found");
     }
 
-    if (name) collaborator.name = name;
-    if (profile) collaborator.profile = profile;
-    if (phoneNumber) collaborator.phoneNumber = phoneNumber;
+    if (name !== undefined) collaborator.name = name;
+    if (profile !== undefined) collaborator.profile = profile;
+    if (phoneNumber !== undefined) collaborator.phoneNumber = phoneNumber;
+    if (email !== undefined) {
+      collaborator.email =
+        email == null || String(email).trim() === ""
+          ? null
+          : String(email).trim().toLowerCase();
+    }
+    if (address !== undefined) collaborator.address = address;
+    if (coverProfile !== undefined) collaborator.coverProfile = coverProfile;
+    if (password != null && String(password).trim() !== "") {
+      collaborator.password = await helper.hashPassword(String(password));
+    }
     const nextProfession = resolveProfessionFromBody(req.body);
     if (nextProfession !== undefined) collaborator.profession = nextProfession;
 
@@ -80,12 +147,17 @@ const getCollaboratorByIdService = async (req) => {
   try {
     const { id } = req.params;
     const collaborator = await getCollaboratorById(id);
-    
+
     if (!collaborator) {
       throw new Error("Collaborator not found");
     }
-    
-    return withProfessionAliases(collaborator);
+
+    const sections = await fetchSectionsForCollaboratorId(id);
+    return {
+      ...withProfessionAliases(collaborator),
+      sectionCount: sections.length,
+      sections,
+    };
   } catch (error) {
     console.error("Get Collaborator Error:", error);
     throw new Error(error.message || "Failed to get collaborator");
@@ -95,7 +167,19 @@ const getCollaboratorByIdService = async (req) => {
 const getAllCollaboratorsService = async (req) => {
   try {
     const collaborators = await getAllCollaborators();
-    return collaborators.map((c) => withProfessionAliases(c));
+    const base = collaborators.map((c) => withProfessionAliases(c));
+    const ids = base.map((c) => c._id);
+    const byId = await sectionsGroupedByCollaboratorIds(ids);
+
+    return base.map((c) => {
+      const key = String(c._id);
+      const sections = byId.get(key) ?? [];
+      return {
+        ...c,
+        sectionCount: sections.length,
+        sections,
+      };
+    });
   } catch (error) {
     console.error("Get All Collaborators Error:", error);
     throw new Error(error.message || "Failed to get collaborators");

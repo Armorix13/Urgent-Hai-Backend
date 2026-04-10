@@ -143,7 +143,16 @@ const courseSchema = new mongoose.Schema(
 );
 
 courseSchema.index({ title: 1 });
-courseSchema.index({ identifierId: 1 }, { sparse: true });
+/** Unique among courses that set a non-empty identifierId (null/omitted allowed for many rows). */
+courseSchema.index(
+  { identifierId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      identifierId: { $exists: true, $nin: [null, ""] },
+    },
+  }
+);
 courseSchema.index({ category: 1 });
 courseSchema.index({ tags: 1 });
 courseSchema.index({ courseType: 1 });
@@ -173,14 +182,17 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
     tags = null,
     isActive = null,
     identifierId = null,
+    adminIncludeAll = false,
   } = options;
 
-  const query = { isDeleted: false };
+  const query = adminIncludeAll ? {} : { isDeleted: false };
 
-  if (isActive !== null) {
-    query.isActive = isActive;
-  } else {
-    query.isActive = true;
+  if (!adminIncludeAll) {
+    if (isActive !== null) {
+      query.isActive = isActive;
+    } else {
+      query.isActive = true;
+    }
   }
 
   if (search) {

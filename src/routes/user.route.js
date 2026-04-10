@@ -49,6 +49,13 @@ userRoute.get(
   userController.getAllUsers
 );
 userRoute.get("/user-detail", authenticate, userController.getUserDetails);
+userRoute.get("/wallet", authenticate, userController.getWallet);
+userRoute.post(
+  "/wallet/add-money",
+  authenticate,
+  validate(userValidationSchemas.addMoneyToWalletSchema),
+  userController.addMoneyToWallet
+);
 userRoute.post("/user-logout", authenticate, userController.logoutUser);
 userRoute.put(
   "/change-password",
@@ -57,5 +64,12 @@ userRoute.put(
   userController.changePassword
 );
 userRoute.delete("/delete-account", authenticate, userController.deleteAccount);
+
+userRoute.get(
+  "/:id",
+  authenticate,
+  validate(userValidationSchemas.getUserByIdSchema),
+  userController.getUserProfileById
+);
 
 export default userRoute;

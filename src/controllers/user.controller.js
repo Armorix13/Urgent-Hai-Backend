@@ -151,6 +151,47 @@ const getAllUsers = async (req, res, next) => {
   }
 };
 
+const getWallet = async (req, res, next) => {
+  try {
+    const data = await userService.getWallet(req);
+    return res.status(200).json({
+      success: true,
+      message: "Wallet fetched successfully!",
+      ...data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const addMoneyToWallet = async (req, res, next) => {
+  try {
+    const data = await userService.addMoneyToWallet(req);
+    return res.status(200).json({
+      success: true,
+      message: "Money added to wallet successfully!",
+      ...data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getUserProfileById = async (req, res, next) => {
+  try {
+    const data = await userService.getUserProfileById(req);
+    return res.status(200).json({
+      success: true,
+      message: "User profile fetched successfully!",
+      user: data.user,
+      suggestions: data.suggestions,
+      enrollments: data.enrollments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const userController = {
   registerUser,
   loginUser,
@@ -164,4 +205,7 @@ export const userController = {
   deleteAccount,
   logoutUser,
   getAllUsers,
+  getWallet,
+  addMoneyToWallet,
+  getUserProfileById,
 };

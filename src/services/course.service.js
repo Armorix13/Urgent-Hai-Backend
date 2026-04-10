@@ -34,10 +34,49 @@ const sanitizeCoursePayload = (body) => {
     const id = next.identifierId;
     if (id === "" || (typeof id === "string" && !id.trim())) {
       next.identifierId = null;
+    } else if (typeof id === "string") {
+      next.identifierId = id.trim().toLowerCase();
     }
   }
   return next;
 };
+
+/**
+ * Non-empty identifierId must be unique among all courses (stored lowercase), optional exclude _id for updates.
+ */
+async function assertIdentifierIdUnique(identifierId, excludeCourseId) {
+  if (identifierId == null) return;
+  const canonical = String(identifierId).trim().toLowerCase();
+  if (!canonical) return;
+
+  const query = { identifierId: canonical };
+  if (excludeCourseId != null) {
+    query._id = { $ne: excludeCourseId };
+  }
+
+  const found = await Course.findOne(query).select("_id").lean();
+  if (found) {
+    throw new Error(
+      `A course with identifierId "${canonical}" already exists (must be unique per course).`
+    );
+  }
+}
+
+function rethrowDuplicateIdentifierId(err) {
+  if (err && err.code === 11000) {
+    const kp = err.keyPattern;
+    const kv = err.keyValue;
+    if (
+      (kp && typeof kp === "object" && kp.identifierId !== undefined) ||
+      (kv && typeof kv === "object" && kv.identifierId !== undefined)
+    ) {
+      throw new Error(
+        "A course with this identifierId already exists (must be unique per course)."
+      );
+    }
+  }
+  throw err;
+}
 
 const addCourse = async (req) => {
   try {
@@ -47,16 +86,26 @@ const addCourse = async (req) => {
     }
     const { courseFields, videos, hasVideos } = splitCourseBody(body);
 
+    await assertIdentifierIdUnique(courseFields.identifierId);
+
     if (!hasVideos) {
-      return Course.create(courseFields);
+      try {
+        return await Course.create(courseFields);
+      } catch (err) {
+        rethrowDuplicateIdentifierId(err);
+      }
     }
 
     const session = await mongoose.startSession();
     try {
       let course;
       await session.withTransaction(async () => {
-        const created = await Course.create([courseFields], { session });
-        course = created[0];
+        try {
+          const created = await Course.create([courseFields], { session });
+          course = created[0];
+        } catch (err) {
+          rethrowDuplicateIdentifierId(err);
+        }
         await replaceCourseVideosForCourse(course._id, videos ?? [], session);
       });
       return course;
@@ -102,6 +151,71 @@ const getCoursesWithPagination = async (req) => {
       tags: tagsArr,
       isActive: isActive !== undefined ? isActive === "true" : null,
       identifierId: identifierId?.trim?.() || null,
+    });
+
+    let courses = result.courses;
+    if (courses.length) {
+      const ids = courses.map((c) => c._id);
+      const grouped = await fetchVideosGroupedByCourseIds(ids);
+      courses = courses.map((c) => {
+        const videos = grouped.get(c._id.toString()) ?? [];
+        const base = {
+          ...c,
+          videoCount: videos.length,
+          videos,
+        };
+        return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
+      });
+      courses = await attachUserCourseFlags(courses, req.userId);
+      courses = courses.map(attachCourseTypeName);
+    }
+
+    const totalVideosOnPage = courses.reduce(
+      (sum, c) => sum + (c.videosCount ?? c.videoCount ?? 0),
+      0
+    );
+
+    return { ...result, courses, totalVideosOnPage };
+  } catch (err) {
+    throw err;
+  }
+};
+
+/** Same as public list but includes inactive and soft-deleted courses (no isActive / isDeleted filter). No auth in route — protect at gateway if needed. */
+const getCoursesWithPaginationAdmin = async (req) => {
+  try {
+    const {
+      page,
+      limit,
+      search,
+      courseType,
+      category,
+      level,
+      sortBy,
+      sortOrder,
+      minPrice,
+      maxPrice,
+      tags,
+      identifierId,
+    } = req.query;
+
+    const tagsArr = tags ? tags.split(",").map((t) => t.trim().toLowerCase()) : null;
+
+    const result = await Course.getCoursesWithPagination({
+      page: page || 1,
+      limit: limit || 10,
+      search: search || "",
+      courseType: courseType ? parseInt(courseType) : null,
+      category: category || null,
+      level: level || null,
+      sortBy: sortBy || "createdAt",
+      sortOrder: sortOrder || "desc",
+      minPrice: minPrice ? parseFloat(minPrice) : null,
+      maxPrice: maxPrice ? parseFloat(maxPrice) : null,
+      tags: tagsArr,
+      isActive: null,
+      identifierId: identifierId?.trim?.() || null,
+      adminIncludeAll: true,
     });
 
     let courses = result.courses;
@@ -199,22 +313,37 @@ const updateCourse = async (req) => {
     const updates = sanitizeCoursePayload(req.body);
     const { courseFields, videos, hasVideos } = splitCourseBody(updates);
 
-    if (!hasVideos) {
-      const course = await Course.findByIdAndUpdate(id, courseFields, { new: true });
-      if (!course) {
-        throw new Error("Course not found");
+    if (Object.prototype.hasOwnProperty.call(courseFields, "identifierId")) {
+      const v = courseFields.identifierId;
+      if (v != null && String(v).trim() !== "") {
+        await assertIdentifierIdUnique(v, id);
       }
-      return course;
+    }
+
+    if (!hasVideos) {
+      try {
+        const course = await Course.findByIdAndUpdate(id, courseFields, { new: true });
+        if (!course) {
+          throw new Error("Course not found");
+        }
+        return course;
+      } catch (err) {
+        rethrowDuplicateIdentifierId(err);
+      }
     }
 
     const session = await mongoose.startSession();
     try {
       let course;
       await session.withTransaction(async () => {
-        course = await Course.findByIdAndUpdate(id, courseFields, {
-          new: true,
-          session,
-        });
+        try {
+          course = await Course.findByIdAndUpdate(id, courseFields, {
+            new: true,
+            session,
+          });
+        } catch (err) {
+          rethrowDuplicateIdentifierId(err);
+        }
         if (!course) {
           throw new Error("Course not found");
         }
@@ -276,6 +405,7 @@ const hardDeleteCourse = async (req) => {
 export const courseService = {
   addCourse,
   getCoursesWithPagination,
+  getCoursesWithPaginationAdmin,
   getCourseById,
   getSimilarCourses,
   updateCourse,
