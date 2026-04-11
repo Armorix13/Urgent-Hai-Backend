@@ -1,6 +1,7 @@
 import Enrollment from "../models/enrollment.model.js";
 import Course from "../models/course.model.js";
 import User from "../models/user.model.js";
+import WalletTransaction from "../models/walletTransaction.model.js";
 import {
   attachVideosToCourseLean,
   fetchVideosForCourse,
@@ -151,6 +152,8 @@ const enroll = async (req) => {
   const { courseId, transactionId, paymentMethod } = req.body;
   let walletDeducted = 0;
   let enrollmentPersisted = false;
+  let walletBalanceBefore = null;
+  let walletBalanceAfter = null;
 
   try {
     const course = await Course.findById(courseId);
@@ -200,6 +203,8 @@ const enroll = async (req) => {
         );
       }
       walletDeducted = price;
+      walletBalanceAfter = Number(updated.wallet ?? 0);
+      walletBalanceBefore = walletBalanceAfter + price;
     }
 
     const paymentBlock =
@@ -235,6 +240,21 @@ const enroll = async (req) => {
     }
 
     enrollmentPersisted = true;
+
+    if (isPaidCourse && walletDeducted > 0) {
+      await WalletTransaction.create({
+        userId,
+        type: "debit",
+        amount: walletDeducted,
+        reason: "course_enrollment",
+        title: `Purchased ${course.title || "Course"}`,
+        description: `Enrolled in paid course: ${course.title || courseId}`,
+        referenceId: enrollment._id,
+        referenceModel: "Enrollment",
+        balanceBefore: walletBalanceBefore,
+        balanceAfter: walletBalanceAfter,
+      }).catch((e) => console.error("WalletTransaction record failed:", e));
+    }
 
     const populated = await Enrollment.findById(enrollment._id)
       .populate(

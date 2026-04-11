@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import Subscription from "../models/subscription.model.js";
 import Enrollment from "../models/enrollment.model.js";
 import Suggestion from "../models/suggestion.model.js";
+import WalletTransaction from "../models/walletTransaction.model.js";
 import {
   PUBLIC_USER_SELECT,
   enrichPublicUser,
@@ -745,17 +746,59 @@ const addMoneyToWallet = async (req) => {
       throw new Error("amount must be a positive number.");
     }
 
+    const before = await User.findById(userId).select("wallet").lean();
+    if (!before) throw new Error("User not found.");
+
+    const balanceBefore = Number(before.wallet ?? 0);
+
     const updated = await User.findByIdAndUpdate(
       userId,
       { $inc: { wallet: amount } },
       { new: true, select: "wallet" }
     ).lean();
 
-    if (!updated) {
-      throw new Error("User not found.");
-    }
+    const balanceAfter = Number(updated.wallet ?? 0);
 
-    return { wallet: updated.wallet ?? 0 };
+    await WalletTransaction.create({
+      userId,
+      type: "credit",
+      amount,
+      reason: "add_money",
+      title: "Money Added to Wallet",
+      description: `Added ${amount} coins to wallet`,
+      balanceBefore,
+      balanceAfter,
+    });
+
+    return { wallet: balanceAfter };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getAllTransactionHistory = async (req) => {
+  try {
+    const userId = req.userId;
+    const page = Math.max(1, parseInt(req.query?.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query?.limit) || 10));
+    const skip = (page - 1) * limit;
+
+    const [transactions, total] = await Promise.all([
+      WalletTransaction.find({ userId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      WalletTransaction.countDocuments({ userId }),
+    ]);
+
+    return {
+      transactions,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      pageSize: limit,
+    };
   } catch (error) {
     throw error;
   }
@@ -776,5 +819,6 @@ export const userService = {
   getAllUsers,
   getWallet,
   addMoneyToWallet,
+  getAllTransactionHistory,
   getUserProfileById,
 };

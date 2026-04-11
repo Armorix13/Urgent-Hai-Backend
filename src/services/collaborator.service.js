@@ -36,6 +36,48 @@ async function sectionsGroupedByCollaboratorIds(collaboratorIds) {
   return map;
 }
 
+/**
+ * Upsert sections for a collaborator:
+ * - Sections with a recognised _id are updated in place.
+ * - Sections without an _id (or with an unrecognised _id) are created.
+ * - Existing sections whose _id is absent from the incoming array are deleted.
+ */
+async function upsertSections(collaboratorId, sections) {
+  const existingSections = await Section.find({ collaboratorId }).lean();
+  const existingIdSet = new Set(existingSections.map((s) => String(s._id)));
+  const keptExistingIds = new Set();
+
+  const ops = sections.map((section) => {
+    const { _id, ...fields } = section;
+    const isExisting = _id && existingIdSet.has(String(_id));
+
+    if (isExisting) {
+      keptExistingIds.add(String(_id));
+      return Section.findByIdAndUpdate(
+        _id,
+        { $set: fields },
+        { new: true, runValidators: false }
+      ).lean();
+    }
+
+    return new Section({ collaboratorId, ...fields })
+      .save()
+      .then((s) => s.toObject());
+  });
+
+  const results = await Promise.all(ops);
+
+  const toDeleteIds = existingSections
+    .filter((s) => !keptExistingIds.has(String(s._id)))
+    .map((s) => s._id);
+
+  if (toDeleteIds.length > 0) {
+    await Section.deleteMany({ _id: { $in: toDeleteIds } });
+  }
+
+  return results.filter(Boolean);
+}
+
 /** Read profession or professionValue from body (add / update). */
 function resolveProfessionFromBody(body) {
   if (!body || typeof body !== "object") return undefined;
@@ -111,6 +153,7 @@ const updateCollaborator = async (req) => {
       address,
       coverProfile,
       password,
+      sections,
     } = req.body;
 
     const collaborator = await getCollaboratorById(id);
@@ -136,7 +179,16 @@ const updateCollaborator = async (req) => {
     if (nextProfession !== undefined) collaborator.profession = nextProfession;
 
     await collaborator.save();
-    return withProfessionAliases(collaborator);
+
+    const updatedSections = Array.isArray(sections)
+      ? await upsertSections(id, sections)
+      : await fetchSectionsForCollaboratorId(id);
+
+    return {
+      ...withProfessionAliases(collaborator),
+      sectionCount: updatedSections.length,
+      sections: updatedSections,
+    };
   } catch (error) {
     console.error("Update Collaborator Error:", error);
     throw new Error(error.message || "Failed to update collaborator");

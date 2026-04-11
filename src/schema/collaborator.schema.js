@@ -10,6 +10,34 @@ const objectId = Joi.string().custom((value, helpers) => {
 
 const professionString = Joi.string().trim().min(1).max(120);
 
+const contentItemSchema = Joi.object({
+  _id: objectId.optional(),
+  title: Joi.string().required().messages({
+    "any.required": "Content title is required.",
+    "string.empty": "Content title cannot be empty.",
+  }),
+  url: Joi.string().uri().required().messages({
+    "any.required": "Content URL is required.",
+    "string.uri": "Content URL must be a valid URI.",
+  }),
+  description: Joi.string().allow("", null).optional(),
+  thumbnail: Joi.string().allow("", null).optional(),
+  duration: Joi.string().allow("", null).optional(),
+  order: Joi.number().integer().min(0).optional(),
+});
+
+const sectionItemSchema = Joi.object({
+  _id: objectId.optional(),
+  title: Joi.string().required().messages({
+    "any.required": "Section title is required.",
+    "string.empty": "Section title cannot be empty.",
+  }),
+  description: Joi.string().allow("", null).optional(),
+  isActive: Joi.boolean().optional(),
+  content: Joi.array().items(contentItemSchema).optional(),
+  order: Joi.number().integer().min(0).optional(),
+});
+
 const addCollaboratorSchema = {
   body: Joi.object()
     .keys({
@@ -80,6 +108,7 @@ const updateCollaboratorSchema = {
         Joi.valid(null, "")
       )
       .optional(),
+    sections: Joi.array().items(sectionItemSchema).optional(),
   }),
 };
 

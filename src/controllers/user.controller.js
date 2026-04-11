@@ -177,6 +177,19 @@ const addMoneyToWallet = async (req, res, next) => {
   }
 };
 
+const getTransactionHistory = async (req, res, next) => {
+  try {
+    const data = await userService.getAllTransactionHistory(req);
+    return res.status(200).json({
+      success: true,
+      message: "Transaction history fetched successfully!",
+      ...data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getUserProfileById = async (req, res, next) => {
   try {
     const data = await userService.getUserProfileById(req);
@@ -207,5 +220,6 @@ export const userController = {
   getAllUsers,
   getWallet,
   addMoneyToWallet,
+  getTransactionHistory,
   getUserProfileById,
 };

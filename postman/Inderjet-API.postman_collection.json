@@ -159,6 +159,23 @@
           }
         },
         {
+          "name": "Get Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/wallet/transactions?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "user", "wallet", "transactions"],
+              "query": [
+                {"key": "page", "value": "1", "description": "Page number (default 1)"},
+                {"key": "limit", "value": "10", "description": "Page size, max 100 (default 10)"}
+              ]
+            },
+            "description": "**GET /user/wallet/transactions** — Bearer required. Returns paginated wallet transaction history for the current user.\n\nResponse: `{ transactions[], total, page, totalPages, pageSize }`.\n\nEach transaction: `_id`, `type` (`credit` | `debit`), `amount`, `reason` (`add_money` | `course_enrollment`), `title`, `description`, `referenceId`, `referenceModel`, `balanceBefore`, `balanceAfter`, `createdAt`.\n\n**Credit reasons:** `add_money` — user topped up wallet.\n**Debit reasons:** `course_enrollment` — coins deducted when enrolling in a paid course."
+          }
+        },
+        {
           "name": "Add Money to Wallet",
           "request": {
             "method": "POST",
@@ -168,7 +185,7 @@
               "raw": "{\n  \"amount\": 100\n}"
             },
             "url": "{{baseUrl}}/api/v1/user/wallet/add-money",
-            "description": "**POST /user/wallet/add-money** — Body: `{ \"amount\": positive number }` (max 1e9). Atomically increments **wallet**. Returns `{ wallet }` (new balance)."
+            "description": "**POST /user/wallet/add-money** — Body: `{ \"amount\": positive number }` (max 1e9). Atomically increments **wallet**. Returns `{ wallet }` (new balance). Also records a **credit** entry in Transaction History (`reason: add_money`)."
           }
         },
         {
@@ -643,7 +660,7 @@
     },
     {
       "name": "Collaborator",
-      "description": "Fields: **name**, **profile**, **coverProfile**, **phoneNumber**, **email**, **address**, **profession** (or **professionValue** on create — one required), optional **password** (hashed server-side; never returned). Responses mirror **profession** / **professionValue**; **password** is never included. **GET /collaborator/get/:id** and **GET /collaborator/get-all** include **sections** (full Section docs for that collaborator, sorted by **order** then **createdAt**) and **sectionCount**. Related: **Section** APIs under `/section`. Auth is commented out in routes (enable in **collaborator.route.js** if needed).",
+      "description": "Fields: **name**, **profile**, **coverProfile**, **phoneNumber**, **email**, **address**, **profession** (or **professionValue** on create — one required), optional **password** (hashed server-side; never returned). Responses mirror **profession** / **professionValue**; **password** is never included.\n\n**GET /collaborator/get/:id** and **GET /collaborator/get-all** include **sections** (full Section docs for that collaborator, sorted by **order** then **createdAt**) and **sectionCount**.\n\n**PUT /collaborator/update/:id** — also accepts a **sections** array to sync all sections in one call (upsert existing by `_id`, create new, delete omitted). Omit `sections` to leave them untouched. Response always includes `sections` + `sectionCount`.\n\nRelated: **Section** APIs under `/section` for individual section CRUD. Auth is commented out in routes (enable in **collaborator.route.js** if needed).",
       "item": [
         {
           "name": "Add Collaborator",
@@ -728,10 +745,10 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phoneNumber\": \"9876543210\",\n  \"email\": \"updated@example.com\",\n  \"address\": \"New address\",\n  \"coverProfile\": \"/covers/new.jpg\",\n  \"profession\": \"KATHA_VACHAK\"\n}"
+              "raw": "{\n  \"name\": \"Santam Singh Khalsa\",\n  \"profile\": \"https://example.com/profile.jpg\",\n  \"coverProfile\": \"https://example.com/cover.jpg\",\n  \"phoneNumber\": \"9876543210\",\n  \"professionValue\": \"Tutor\",\n  \"sections\": [\n    {\n      \"_id\": \"EXISTING_SECTION_ID_OR_OMIT_FOR_NEW\",\n      \"title\": \"Featured Performances\",\n      \"description\": \"A collection of live performances\",\n      \"isActive\": true,\n      \"order\": 0,\n      \"content\": [\n        {\n          \"_id\": \"EXISTING_CONTENT_ID_OR_OMIT_FOR_NEW\",\n          \"title\": \"Japji Sahib || Bhai Satnam Singh Ji Khalsa\",\n          \"url\": \"https://youtu.be/cJePLk8s7IA?si=r_tAei3lh601VhF2\",\n          \"description\": \"Optional description\",\n          \"order\": 0\n        }\n      ]\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/api/v1/collaborator/update/{{collaborator_id}}",
-            "description": "**PUT /collaborator/update/:id** — Partial body. Use **profession** or **professionValue** to update the stored profession string."
+            "description": "**PUT /collaborator/update/:id** — Partial update. All fields are optional.\n\n**Collaborator fields:** `name`, `profile`, `coverProfile`, `phoneNumber`, `email`, `address`, `profession` / `professionValue`, `password`.\n\n**sections** *(optional array)* — Full **sync** of sections for this collaborator:\n- Section with a known `_id` → **updated in place**.\n- Section without `_id` (or unrecognised `_id`) → **created** (linked to this collaborator).\n- Existing sections **not included** in the array → **deleted**.\n- Omit `sections` entirely to leave existing sections unchanged.\n\nEach section: `title` (required), `description`, `isActive`, `order`, `content[]`.\nEach content item: `title` (required), `url` (required, valid URI), `description`, `thumbnail`, `duration`, `order`.\n\nResponse includes `collaborator` fields + **sections** array + **sectionCount**."
           }
         },
         {

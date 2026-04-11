@@ -50,6 +50,11 @@ userRoute.get(
 );
 userRoute.get("/user-detail", authenticate, userController.getUserDetails);
 userRoute.get("/wallet", authenticate, userController.getWallet);
+userRoute.get(
+  "/wallet/transactions",
+  authenticate,
+  userController.getTransactionHistory
+);
 userRoute.post(
   "/wallet/add-money",
   authenticate,
