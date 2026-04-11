@@ -1,6 +1,23 @@
 import Joi from "joi";
 import mongoose from "mongoose";
 
+const deviceTypeSchema = Joi.alternatives()
+  .try(
+    Joi.number().valid(1, 2),
+    Joi.string()
+      .trim()
+      .lowercase()
+      .valid("1", "2", "ios", "iphone", "ipad", "android", "mobile", "web")
+  )
+  .optional()
+  .messages({
+    "any.only": "deviceType must be 1 (iOS) or 2 (Android).",
+  });
+
+const deviceTokenSchema = Joi.string().optional().allow("", null).messages({
+  "string.base": "deviceToken must be a string.",
+});
+
 const registerUserSchema = {
   body: Joi.object().keys({
     email: Joi.string().email().required().messages({
@@ -16,17 +33,10 @@ const registerUserSchema = {
       "any.required": "Name is required.",
       "string.empty": "Name cannot be empty.",
     }),
-    deviceType: Joi.alternatives()
-      .try(Joi.number().valid(1, 2), Joi.string().trim().lowercase())
-      .required()
-      .messages({
-        "any.required": "Device type is required.",
-      }),
+    deviceType: deviceTypeSchema,
+    deviceToken: deviceTokenSchema,
     age: Joi.number().required().messages({
       "any.required": "age is required.",
-    }),
-    deviceToken: Joi.string().required().messages({
-      "any.required": "Device Token is required.",
     }),
     phoneNumber: Joi.string().trim().max(20).optional().messages({
       "string.max": "Phone number must be at most 20 characters.",
@@ -69,21 +79,21 @@ const loginUserSchema = {
       email: Joi.string().email().optional().messages({
         "string.email": "Please provide a valid email address.",
       }),
+      phoneNumber: Joi.string().trim().max(20).optional().messages({
+        "string.max": "Phone number must be at most 20 characters.",
+      }),
       password: Joi.string().min(8).required().messages({
         "string.min": "Password must be at least 8 characters long.",
         "any.required": "Password is required.",
       }),
-      deviceType: Joi.alternatives()
-        .try(Joi.number().valid(1, 2), Joi.string().trim().lowercase())
-        .required()
-        .messages({
-          "any.required": "Device type is required.",
-        }),
-      deviceToken: Joi.string().required().messages({
-        "any.required": "Device Token is required.",
-      }),
+      deviceType: deviceTypeSchema,
+      deviceToken: deviceTokenSchema,
     })
-    .xor("email", "phoneNumber"),
+    .xor("email", "phoneNumber")
+    .messages({
+      "object.xor": "Provide either email or phoneNumber, not both.",
+      "object.missing": "Either email or phoneNumber is required.",
+    }),
 };
 
 const forgetPasswordSchema = {
@@ -108,13 +118,8 @@ const verifyOtpSchema = {
         "string.email": "Please provide a valid email address.",
         "any.required": "Email is required.",
       }),
-      deviceType: Joi.alternatives()
-        .try(
-          Joi.number().valid(1, 2),
-          Joi.string().trim().lowercase()
-        )
-        .optional(),
-      deviceToken: Joi.string().optional().allow(""),
+      deviceType: deviceTypeSchema,
+      deviceToken: deviceTokenSchema,
     })
     .options({ stripUnknown: true }),
 };
@@ -245,15 +250,8 @@ const socialLoginSchema = {
     profileImage: Joi.string().max(500).allow("", null).optional().messages({
       "string.max": "Profile image URL is too long.",
     }),
-    deviceType: Joi.alternatives()
-      .try(Joi.number().valid(1, 2), Joi.string().trim().lowercase())
-      .required()
-      .messages({
-        "any.required": "Device type is required.",
-      }),
-    deviceToken: Joi.string().required().messages({
-      "any.required": "Device token is required.",
-    }),
+    deviceType: deviceTypeSchema,
+    deviceToken: deviceTokenSchema,
     phoneNumber: Joi.string().trim().max(20).optional().messages({
       "string.max": "Phone number must be at most 20 characters.",
     }),

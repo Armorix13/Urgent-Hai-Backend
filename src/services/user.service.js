@@ -62,9 +62,6 @@ const registerUser = async (req) => {
     const existingUser = await getUserByEmail(lowerCaseEmail);
 
     const normalizedDeviceType = normalizeDeviceType(deviceType);
-    if (normalizedDeviceType == null) {
-      throw new Error("deviceType must be 1 (iOS), 2 (Android), or common strings like ios/android/mobile.");
-    }
     const normalizedLanguage = normalizeLanguage(language);
     if (!normalizedLanguage) {
       throw new Error(
@@ -82,8 +79,8 @@ const registerUser = async (req) => {
       const otp = helper.generateOtp(6);
       existingUser.otp = otp;
       existingUser.otpExpiry = helper.addMinutesToCurrentTime(10);
-      existingUser.deviceType = normalizedDeviceType;
-      existingUser.deviceToken = deviceToken;
+      if (normalizedDeviceType != null) existingUser.deviceType = normalizedDeviceType;
+      if (deviceToken) existingUser.deviceToken = String(deviceToken);
       if (phoneNumber !== undefined) existingUser.phoneNumber = phoneNumber;
       if (countryCode !== undefined) existingUser.countryCode = countryCode;
       await existingUser.save();
@@ -112,8 +109,8 @@ const registerUser = async (req) => {
     const newUser = new User({
       email: lowerCaseEmail,
       password: hashedPassword,
-      deviceType: normalizedDeviceType,
-      deviceToken,
+      ...(normalizedDeviceType != null ? { deviceType: normalizedDeviceType } : {}),
+      ...(deviceToken ? { deviceToken: String(deviceToken) } : {}),
       age,
       ...(normalizedGender != null ? { gender: normalizedGender } : {}),
       userName,
@@ -165,9 +162,6 @@ const socialLogin = async (req) => {
 
     const lowerCaseEmail = email.toLowerCase();
     const normalizedDeviceType = normalizeDeviceType(deviceType);
-    if (normalizedDeviceType == null) {
-      throw new Error("deviceType must be 1 (iOS), 2 (Android), or common strings like ios/android/mobile.");
-    }
 
     let user = await User.findOne({
       email: lowerCaseEmail,
@@ -192,8 +186,8 @@ const socialLogin = async (req) => {
       if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
       if (countryCode !== undefined) user.countryCode = countryCode;
 
-      user.deviceType = normalizedDeviceType;
-      user.deviceToken = deviceToken;
+      if (normalizedDeviceType != null) user.deviceType = normalizedDeviceType;
+      if (deviceToken) user.deviceToken = String(deviceToken);
       user.isVerified = true;
       user.socialId = providerId;
       await user.save();
@@ -209,8 +203,8 @@ const socialLogin = async (req) => {
         profileImage: profileImage || undefined,
         phoneNumber: phoneNumber || undefined,
         countryCode: countryCode || undefined,
-        deviceType: normalizedDeviceType,
-        deviceToken,
+        ...(normalizedDeviceType != null ? { deviceType: normalizedDeviceType } : {}),
+        ...(deviceToken ? { deviceToken: String(deviceToken) } : {}),
         isVerified: true,
       });
     }
@@ -245,11 +239,13 @@ const socialLogin = async (req) => {
 
 const loginUser = async (req) => {
   try {
-    const { email, password, deviceType, deviceToken } = req.body;
+    const { email, phoneNumber, password, deviceType, deviceToken } = req.body;
     let user;
 
     if (email) {
       user = await getUserByEmail(email.toLowerCase());
+    } else if (phoneNumber) {
+      user = await User.findOne({ phoneNumber: String(phoneNumber).trim() });
     }
 
     if (!user) {
@@ -266,18 +262,13 @@ const loginUser = async (req) => {
     }
 
     const normalizedDeviceType = normalizeDeviceType(deviceType);
-    if (normalizedDeviceType == null) {
-      throw new Error("deviceType must be 1 (iOS), 2 (Android), or common strings like ios/android/mobile.");
-    }
-
     const jti = helper.generateRandomJti(16);
-    await User.findByIdAndUpdate(user._id, {
-      $set: {
-        jti,
-        deviceType: normalizedDeviceType,
-        deviceToken,
-      },
-    });
+
+    const deviceUpdate = { jti };
+    if (normalizedDeviceType != null) deviceUpdate.deviceType = normalizedDeviceType;
+    if (deviceToken) deviceUpdate.deviceToken = String(deviceToken);
+
+    await User.findByIdAndUpdate(user._id, { $set: deviceUpdate });
 
     const userObject = (
       await User.findById(user._id).lean()
