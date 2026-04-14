@@ -118,10 +118,40 @@ const deleteCollaboratorSchema = {
   }),
 };
 
+/** POST /collaborator/set-password — identify by email and/or phoneNumber, set password (hashed). */
+const setCollaboratorPasswordSchema = {
+  body: Joi.object({
+    email: Joi.string().trim().email().optional().messages({
+      "string.email": "Please provide a valid email address.",
+    }),
+    phoneNumber: Joi.string()
+      .trim()
+      .pattern(/^[0-9+\-\s()]+$/)
+      .optional()
+      .messages({
+        "string.pattern.base":
+          "Phone number must contain only numbers, +, -, spaces, and parentheses.",
+      }),
+    password: Joi.string().min(6).max(128).required().messages({
+      "any.required": "Password is required.",
+      "string.min": "Password must be at least 6 characters.",
+      "string.empty": "Password cannot be empty.",
+    }),
+  }).custom((value, helpers) => {
+    const email = value.email != null ? String(value.email).trim() : "";
+    const phone = value.phoneNumber != null ? String(value.phoneNumber).trim() : "";
+    if (!email && !phone) {
+      return helpers.message("Either email or phoneNumber is required.");
+    }
+    return value;
+  }),
+};
+
 const collaboratorValidationSchemas = {
   addCollaboratorSchema,
   updateCollaboratorSchema,
   deleteCollaboratorSchema,
+  setCollaboratorPasswordSchema,
 };
 
 export default collaboratorValidationSchemas;

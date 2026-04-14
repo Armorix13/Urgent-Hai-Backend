@@ -13,6 +13,12 @@ collaboratorRoute.post(
   collaboratorController.addCollaborator
 );
 
+collaboratorRoute.post(
+  "/set-password",
+  validate(collaboratorValidationSchemas.setCollaboratorPasswordSchema),
+  collaboratorController.setCollaboratorPassword
+);
+
 collaboratorRoute.put(
   "/update/:id",
   validate(collaboratorValidationSchemas.updateCollaboratorSchema),

@@ -8,6 +8,12 @@ const objectId = Joi.string().custom((value, helpers) => {
   return value;
 }, "ObjectId validation");
 
+/** Optional Mongo ObjectId or null/empty to clear (e.g. collaborator on course). */
+const optionalObjectIdOrEmpty = Joi.alternatives().try(
+  Joi.valid(null, ""),
+  objectId
+);
+
 /** Inline videos: synced to CourseVideo on POST/PUT /course (replace-all when `videos` is sent). */
 const courseVideoInlineSchema = Joi.object().keys({
   video_url: Joi.string().trim().allow(null, "").optional(),
@@ -50,6 +56,8 @@ const addCourseSchema = {
     videos: Joi.array().items(courseVideoInlineSchema).optional(),
     prerequisites: Joi.array().items(Joi.string().trim()).optional(),
     learningOutcomes: Joi.array().items(Joi.string().trim().max(300)).optional(),
+    collaboratorId: optionalObjectIdOrEmpty.optional(),
+    collaborators: optionalObjectIdOrEmpty.optional(),
     })
     .options({ stripUnknown: true }),
 };
@@ -74,6 +82,8 @@ const updateCourseSchema = {
     videos: Joi.array().items(courseVideoInlineSchema).optional(),
     prerequisites: Joi.array().items(Joi.string().trim()).optional(),
     learningOutcomes: Joi.array().items(Joi.string().trim().max(300)).optional(),
+    collaboratorId: optionalObjectIdOrEmpty.optional(),
+    collaborators: optionalObjectIdOrEmpty.optional(),
   }),
 };
 

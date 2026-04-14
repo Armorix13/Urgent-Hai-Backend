@@ -238,6 +238,45 @@ const getAllCollaboratorsService = async (req) => {
   }
 };
 
+/**
+ * Find collaborator by email (normalized) and/or phone (trimmed).
+ * If both are provided, both must match the same document.
+ */
+async function findCollaboratorForPasswordSet({ email, phoneNumber }) {
+  const emailTrim = email != null ? String(email).trim().toLowerCase() : "";
+  const phoneTrim = phoneNumber != null ? String(phoneNumber).trim() : "";
+  const hasEmail = emailTrim.length > 0;
+  const hasPhone = phoneTrim.length > 0;
+
+  if (hasEmail && hasPhone) {
+    return Collaborator.findOne({
+      email: emailTrim,
+      phoneNumber: phoneTrim,
+    });
+  }
+  if (hasEmail) {
+    return Collaborator.findOne({ email: emailTrim });
+  }
+  return Collaborator.findOne({ phoneNumber: phoneTrim });
+}
+
+const setCollaboratorPassword = async (req) => {
+  try {
+    const { email, phoneNumber, password } = req.body;
+    const collaborator = await findCollaboratorForPasswordSet({ email, phoneNumber });
+    if (!collaborator) {
+      throw new Error("Collaborator not found for the given email or phone number.");
+    }
+
+    collaborator.password = await helper.hashPassword(String(password));
+    await collaborator.save();
+    return withProfessionAliases(collaborator);
+  } catch (error) {
+    console.error("Set collaborator password error:", error);
+    throw new Error(error.message || "Failed to set password");
+  }
+};
+
 const deleteCollaborator = async (req) => {
   try {
     const { id } = req.params;
@@ -257,5 +296,6 @@ export const collaboratorService = {
   updateCollaborator,
   getCollaboratorById: getCollaboratorByIdService,
   getAllCollaborators: getAllCollaboratorsService,
+  setCollaboratorPassword,
   deleteCollaborator,
 };

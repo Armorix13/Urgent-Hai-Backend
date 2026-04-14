@@ -159,3 +159,54 @@ export async function attachUserCourseFlags(courses, userId) {
     };
   });
 }
+
+function formatCourseRatingRow(r) {
+  const u = r.user;
+  return {
+    _id: r._id,
+    course: r.course,
+    rating: r.rating,
+    review: r.review ?? "",
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    user: u
+      ? {
+          _id: u._id,
+          userName: u.userName ?? null,
+          profileImage: u.profileImage ?? null,
+        }
+      : null,
+  };
+}
+
+/**
+ * Attach all CourseRating rows per course (newest first). Safe user subset only.
+ */
+export async function attachCourseRatingsForCourses(courses) {
+  if (!courses?.length) return courses;
+  const ids = courses.map((c) => c._id).filter(Boolean);
+  if (!ids.length) return courses;
+
+  const rows = await CourseRating.find({ course: { $in: ids } })
+    .populate({
+      path: "user",
+      select: "userName profileImage",
+    })
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  const byCourse = new Map();
+  for (const id of ids) {
+    byCourse.set(id.toString(), []);
+  }
+  for (const r of rows) {
+    const key = r.course.toString();
+    if (!byCourse.has(key)) byCourse.set(key, []);
+    byCourse.get(key).push(formatCourseRatingRow(r));
+  }
+
+  return courses.map((c) => ({
+    ...c,
+    courseRatings: byCourse.get(c._id.toString()) ?? [],
+  }));
+}

@@ -660,7 +660,7 @@
     },
     {
       "name": "Collaborator",
-      "description": "Fields: **name**, **profile**, **coverProfile**, **phoneNumber**, **email**, **address**, **profession** (or **professionValue** on create — one required), optional **password** (hashed server-side; never returned). Responses mirror **profession** / **professionValue**; **password** is never included.\n\n**GET /collaborator/get/:id** and **GET /collaborator/get-all** include **sections** (full Section docs for that collaborator, sorted by **order** then **createdAt**) and **sectionCount**.\n\n**PUT /collaborator/update/:id** — also accepts a **sections** array to sync all sections in one call (upsert existing by `_id`, create new, delete omitted). Omit `sections` to leave them untouched. Response always includes `sections` + `sectionCount`.\n\nRelated: **Section** APIs under `/section` for individual section CRUD. Auth is commented out in routes (enable in **collaborator.route.js** if needed).",
+      "description": "Fields: **name**, **profile**, **coverProfile**, **phoneNumber**, **email**, **address**, **profession** (or **professionValue** on create — one required), optional **password** (hashed server-side; never returned). Responses mirror **profession** / **professionValue**; **password** is never included.\n\n**POST /collaborator/set-password** — Public. Body: **password** (required, min 6) plus **email** and/or **phoneNumber** to locate the collaborator. Password is bcrypt-hashed and saved. If both **email** and **phoneNumber** are sent, both must match the same document.\n\n**GET /collaborator/get/:id** and **GET /collaborator/get-all** include **sections** (full Section docs for that collaborator, sorted by **order** then **createdAt**) and **sectionCount**.\n\n**PUT /collaborator/update/:id** — also accepts a **sections** array to sync all sections in one call (upsert existing by `_id`, create new, delete omitted). Omit `sections` to leave them untouched. Response always includes `sections` + `sectionCount`.\n\nRelated: **Section** APIs under `/section` for individual section CRUD. Auth is commented out in routes (enable in **collaborator.route.js** if needed).",
       "item": [
         {
           "name": "Add Collaborator",
@@ -689,6 +689,19 @@
             },
             "url": "{{baseUrl}}/api/v1/collaborator/add",
             "description": "**POST /collaborator/add** — Send **profession** or **professionValue** (string, required one of). Test script saves **collaborator_id** on 201."
+          }
+        },
+        {
+          "name": "Set collaborator password",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"phoneNumber\": \"9876543210\",\n  \"password\": \"yourNewPassword123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/collaborator/set-password",
+            "description": "**POST /collaborator/set-password** — Send **password** (required). Include **email** and/or **phoneNumber** (at least one). Email is matched case-insensitively. If both identifiers are sent, they must match the same collaborator row. Password is hashed with bcrypt; response never includes **password**."
           }
         },
         {
@@ -1055,7 +1068,7 @@
     },
     {
       "name": "Course",
-      "description": "**courseType:** `1` = paid (require **price**), `2` = free.\n**identifierId** — optional external id (filter: `?identifierId=`).\n**courseContent** — embedded lessons on the Course document.\n**videos** — syncs to **CourseVideo** when this key is present on POST/PUT (full replace). Omit **videos** on PUT to keep existing videos.\n**GET /** returns `courses`, `pagination` (includes `pageSize`), `totalVideosOnPage`.\n**GET /course/admin/all** — same shape as **GET /** but includes **inactive** and **soft-deleted** (`isDeleted: true`) courses; **no** `isActive` / `isDeleted` filter. **No auth middleware** on the server — protect externally if needed.",
+      "description": "**courseType:** `1` = paid (require **price**), `2` = free.\n**identifierId** — optional external id (filter: `?identifierId=`).\n**collaboratorId** — optional MongoDB **Collaborator** `_id` (stored as **collaborators** on the course). Omit or use **`collaborators`** with the same id. Server checks the collaborator exists.\n**courseContent** — embedded lessons on the Course document.\n**videos** — syncs to **CourseVideo** when this key is present on POST/PUT (full replace). Omit **videos** on PUT to keep existing videos.\n**GET /** returns `courses`, `pagination` (includes `pageSize`), `totalVideosOnPage`. Each course may include **`collaborators`** — populated Collaborator (no password), plus **`professionValue`** when `profession` is set. **`courseRatings`** — array of all rating rows for that course (each: `_id`, `course`, `rating` 1–5, `review`, `createdAt`, `updatedAt`, `user` with `_id`, `userName`, `profileImage`), sorted by **`updatedAt`** desc. Existing **`rating.average`** / **`rating.count`** on the course remain the aggregate summary.\n**GET /course/admin/all** — same shape as **GET /** but includes **inactive** and **soft-deleted** (`isDeleted: true`) courses; **no** `isActive` / `isDeleted` filter. **No auth middleware** on the server — protect externally if needed.",
       "item": [
         {
           "name": "Get All Courses (Admin — includes inactive & deleted)",
@@ -1182,10 +1195,10 @@
             "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Intro to Raag\",\n  \"identifierId\": \"EXT-1001\",\n  \"description\": \"Full description (max 2000 chars).\",\n  \"courseType\": 2,\n  \"category\": \"Classical\",\n  \"level\": \"beginner\",\n  \"tags\": [\"raag\", \"beginner\"],\n  \"thumbnail\": null,\n  \"duration\": \"10h\",\n  \"benefits\": [\"Lifetime access\"],\n  \"prerequisites\": [],\n  \"learningOutcomes\": [\"Understand basics\"],\n  \"courseContent\": [\n    {\n      \"title\": \"Embedded lesson 1\",\n      \"description\": \"On Course document\",\n      \"videoUrl\": \"https://example.com/preview.mp4\",\n      \"duration\": \"12m\",\n      \"order\": 0,\n      \"isPreview\": true\n    }\n  ],\n  \"videos\": [\n    {\n      \"videoUrl\": \"https://example.com/playback-1.mp4\",\n      \"title\": \"CourseVideo row 1\",\n      \"description\": \"Merged as videos[] in GET\",\n      \"order\": 0,\n      \"isActive\": true\n    },\n    {\n      \"video_url\": \"https://example.com/playback-2.mp4\",\n      \"title\": \"Alias video_url\",\n      \"order\": 1\n    }\n  ]\n}"
+              "raw": "{\n  \"title\": \"Intro to Raag\",\n  \"identifierId\": \"EXT-1001\",\n  \"collaboratorId\": \"{{collaborator_id}}\",\n  \"description\": \"Full description (max 2000 chars).\",\n  \"courseType\": 2,\n  \"category\": \"Classical\",\n  \"level\": \"beginner\",\n  \"tags\": [\"raag\", \"beginner\"],\n  \"thumbnail\": null,\n  \"duration\": \"10h\",\n  \"benefits\": [\"Lifetime access\"],\n  \"prerequisites\": [],\n  \"learningOutcomes\": [\"Understand basics\"],\n  \"courseContent\": [\n    {\n      \"title\": \"Embedded lesson 1\",\n      \"description\": \"On Course document\",\n      \"videoUrl\": \"https://example.com/preview.mp4\",\n      \"duration\": \"12m\",\n      \"order\": 0,\n      \"isPreview\": true\n    }\n  ],\n  \"videos\": [\n    {\n      \"videoUrl\": \"https://example.com/playback-1.mp4\",\n      \"title\": \"CourseVideo row 1\",\n      \"description\": \"Merged as videos[] in GET\",\n      \"order\": 0,\n      \"isActive\": true\n    },\n    {\n      \"video_url\": \"https://example.com/playback-2.mp4\",\n      \"title\": \"Alias video_url\",\n      \"order\": 1\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/api/v1/course",
-            "description": "Auth required. **videos** optional — creates CourseVideo rows in same transaction. For **courseType: 1** add **price**. Remove optional keys you do not need. Saves new **course_id** on 201."
+            "description": "Auth required. Optional **collaboratorId** (Mongo **Collaborator** `_id`, or **collaborators** with same value). **videos** optional — creates CourseVideo rows in same transaction. For **courseType: 1** add **price**. Remove optional keys you do not need. Saves new **course_id** on 201."
           }
         },
         {

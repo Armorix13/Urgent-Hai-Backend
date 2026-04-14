@@ -1,5 +1,11 @@
 import mongoose from "mongoose";
 
+/** Safe Collaborator fields on course APIs (password never selected). */
+export const courseCollaboratorPopulate = {
+  path: "collaborators",
+  select: "name profile coverProfile phoneNumber email profession address",
+};
+
 const courseContentSchema = new mongoose.Schema(
   {
     title: {
@@ -33,6 +39,11 @@ const courseContentSchema = new mongoose.Schema(
 
 const courseSchema = new mongoose.Schema(
   {
+    collaborators: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collaborator",
+      default: null,
+    },
     title: {
       type: String,
       required: true,
@@ -229,6 +240,7 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
   sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
 
   const courses = await this.find(query)
+    .populate(courseCollaboratorPopulate)
     .sort(sortOptions)
     .skip(skip)
     .limit(parseInt(limit))
@@ -256,6 +268,7 @@ courseSchema.statics.getSimilarCourses = async function (courseId, category, lim
     isActive: true,
     isDeleted: false,
   })
+    .populate(courseCollaboratorPopulate)
     .limit(limit)
     .sort({ enrollmentCount: -1, "rating.average": -1 })
     .lean();

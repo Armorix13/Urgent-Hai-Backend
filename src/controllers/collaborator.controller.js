@@ -52,6 +52,19 @@ const getAllCollaborators = async (req, res, next) => {
   }
 };
 
+const setCollaboratorPassword = async (req, res, next) => {
+  try {
+    const collaborator = await collaboratorService.setCollaboratorPassword(req);
+    return res.status(200).json({
+      success: true,
+      message: "Password set successfully!",
+      collaborator,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const deleteCollaborator = async (req, res, next) => {
   try {
     const collaborator = await collaboratorService.deleteCollaborator(req);
@@ -70,5 +83,6 @@ export const collaboratorController = {
   updateCollaborator,
   getCollaboratorById,
   getAllCollaborators,
+  setCollaboratorPassword,
   deleteCollaborator,
 };

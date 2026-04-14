@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
-import Course from "../models/course.model.js";
+import Course, { courseCollaboratorPopulate } from "../models/course.model.js";
+import Collaborator from "../models/collaborator.model.js";
 import {
   fetchVideosForCourse,
   fetchVideosGroupedByCourseIds,
@@ -13,13 +14,33 @@ import {
   applyWatchPolicyToCourse,
   FULL_LISTING_ACCESS,
 } from "../utils/courseAccess.js";
-import { attachUserCourseFlags } from "./rating.service.js";
+import {
+  attachCourseRatingsForCourses,
+  attachUserCourseFlags,
+} from "./rating.service.js";
 
 /** Lean queries omit Mongoose virtuals; mirror courseTypeName for API consumers. */
 const attachCourseTypeName = (course) => ({
   ...course,
   courseTypeName: Number(course.courseType) === 1 ? "paid" : "free",
 });
+
+/** Populated `collaborators` ref: add professionValue like other collaborator APIs. */
+const enrichCourseCollaborator = (course) => {
+  if (!course?.collaborators || typeof course.collaborators !== "object") {
+    return course;
+  }
+  const col = course.collaborators;
+  if (!col._id) return course;
+  return {
+    ...course,
+    collaborators: {
+      ...col,
+      professionValue:
+        col.profession != null && col.profession !== "" ? col.profession : null,
+    },
+  };
+};
 
 const sanitizeCoursePayload = (body) => {
   if (!body || typeof body !== "object") return body;
@@ -38,8 +59,35 @@ const sanitizeCoursePayload = (body) => {
       next.identifierId = id.trim().toLowerCase();
     }
   }
+  /** API `collaboratorId` → model `collaborators` (optional ObjectId ref). */
+  if (
+    Object.prototype.hasOwnProperty.call(next, "collaboratorId") ||
+    Object.prototype.hasOwnProperty.call(next, "collaborators")
+  ) {
+    const raw = Object.prototype.hasOwnProperty.call(next, "collaboratorId")
+      ? next.collaboratorId
+      : next.collaborators;
+    if (raw == null || raw === "" || (typeof raw === "string" && !String(raw).trim())) {
+      next.collaborators = null;
+    } else {
+      next.collaborators = String(raw).trim();
+    }
+    delete next.collaboratorId;
+  }
   return next;
 };
+
+async function assertCollaboratorExistsIfSet(collaboratorsRef) {
+  if (collaboratorsRef == null) return;
+  const id = String(collaboratorsRef).trim();
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid collaborator id.");
+  }
+  const exists = await Collaborator.exists({ _id: id });
+  if (!exists) {
+    throw new Error("Collaborator not found.");
+  }
+}
 
 /**
  * Non-empty identifierId must be unique among all courses (stored lowercase), optional exclude _id for updates.
@@ -87,6 +135,7 @@ const addCourse = async (req) => {
     const { courseFields, videos, hasVideos } = splitCourseBody(body);
 
     await assertIdentifierIdUnique(courseFields.identifierId);
+    await assertCollaboratorExistsIfSet(courseFields.collaborators);
 
     if (!hasVideos) {
       try {
@@ -164,10 +213,11 @@ const getCoursesWithPagination = async (req) => {
           videoCount: videos.length,
           videos,
         };
-        return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
+        return enrichCourseCollaborator(applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS));
       });
       courses = await attachUserCourseFlags(courses, req.userId);
       courses = courses.map(attachCourseTypeName);
+      courses = await attachCourseRatingsForCourses(courses);
     }
 
     const totalVideosOnPage = courses.reduce(
@@ -229,10 +279,11 @@ const getCoursesWithPaginationAdmin = async (req) => {
           videoCount: videos.length,
           videos,
         };
-        return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
+        return enrichCourseCollaborator(applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS));
       });
       courses = await attachUserCourseFlags(courses, req.userId);
       courses = courses.map(attachCourseTypeName);
+      courses = await attachCourseRatingsForCourses(courses);
     }
 
     const totalVideosOnPage = courses.reduce(
@@ -249,7 +300,7 @@ const getCoursesWithPaginationAdmin = async (req) => {
 const getCourseById = async (req) => {
   try {
     const { id } = req.params;
-    const course = await Course.findById(id).lean();
+    const course = await Course.findById(id).populate(courseCollaboratorPopulate).lean();
 
     if (!course) {
       throw new Error("Course not found");
@@ -267,7 +318,9 @@ const getCourseById = async (req) => {
     };
     const withPolicy = applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
     const [flagged] = await attachUserCourseFlags([withPolicy], req.userId);
-    return attachCourseTypeName(flagged);
+    const enriched = enrichCourseCollaborator(flagged);
+    const [withRatings] = await attachCourseRatingsForCourses([enriched]);
+    return attachCourseTypeName(withRatings);
   } catch (err) {
     throw err;
   }
@@ -298,10 +351,12 @@ const getSimilarCourses = async (req) => {
         videoCount: videos.length,
         videos,
       };
-      return applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS);
+      return enrichCourseCollaborator(applyWatchPolicyToCourse(base, FULL_LISTING_ACCESS));
     });
     list = await attachUserCourseFlags(list, req.userId);
-    return list.map(attachCourseTypeName);
+    list = list.map(attachCourseTypeName);
+    list = await attachCourseRatingsForCourses(list);
+    return list;
   } catch (err) {
     throw err;
   }
@@ -318,6 +373,9 @@ const updateCourse = async (req) => {
       if (v != null && String(v).trim() !== "") {
         await assertIdentifierIdUnique(v, id);
       }
+    }
+    if (Object.prototype.hasOwnProperty.call(courseFields, "collaborators")) {
+      await assertCollaboratorExistsIfSet(courseFields.collaborators);
     }
 
     if (!hasVideos) {
