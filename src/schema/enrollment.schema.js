@@ -28,7 +28,7 @@ const getEnrollmentByIdSchema = {
   params: Joi.object().keys({ id: objectId.required() }),
 };
 
-/** GET /enrollment?productIds=vocal_course,abc_product (also product_ids; arrays supported) */
+/** GET /enrollment — optional query keys (ignored by list handler; allowed for clients). */
 const getUserEnrollmentsSchema = {
   query: Joi.object()
     .keys({

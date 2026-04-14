@@ -12,11 +12,6 @@ import {
   FULL_LISTING_ACCESS,
 } from "../utils/courseAccess.js";
 import { attachMyRatingsToEnrollments } from "./rating.service.js";
-import {
-  fetchRevenueCatSubscriber,
-  extractNonSubscriptionProductKeys,
-  filterEnrollmentsByRevenueCatProducts,
-} from "./revenueCat.service.js";
 
 const enrichCourseWithVideosAndAccess = (course, videos) =>
   applyWatchPolicyToCourse(attachVideosToCourseLean(course, videos), FULL_LISTING_ACCESS);
@@ -40,8 +35,9 @@ const enrichEnrollmentWithVideos = async (enrollment, userId) => {
 /**
  * Parses productIds and/or product_ids from query (comma-separated and/or repeated params).
  * Examples: ?productIds=vocal_course,abc_product  ?productIds=a&productIds=b  ?product_ids=x
+ * (Not used by {@link getUserEnrollments}; kept for reuse / tooling.)
  */
-function parseProductIdsFromQuery(query) {
+export function parseProductIdsFromQuery(query) {
   if (!query || typeof query !== "object") return new Set();
   const parts = [];
   const pull = (v) => {
@@ -63,12 +59,10 @@ function parseProductIdsFromQuery(query) {
 }
 
 /** Active courses whose identifierId matches requested product ids (case-insensitive). */
-async function fetchActiveCoursesByProductIdentifiers(productIdSet) {
+export async function fetchActiveCoursesByProductIdentifiers(productIdSet) {
   const wantLower = [...productIdSet].map((p) => String(p).trim().toLowerCase());
   if (!wantLower.length) return [];
   return Course.find({
-    // isDeleted: false,
-    // isActive: true,
     identifierId: { $exists: true, $nin: [null, ""] },
     $expr: {
       $in: [{ $toLower: "$identifierId" }, wantLower],
@@ -80,7 +74,7 @@ async function fetchActiveCoursesByProductIdentifiers(productIdSet) {
     .lean();
 }
 
-function sortCoursesByRequestedOrder(courses, productIdSet) {
+export function sortCoursesByRequestedOrder(courses, productIdSet) {
   const order = [...productIdSet].map((p) => String(p).trim().toLowerCase());
   const rank = (identifierId) => {
     const i = order.indexOf(String(identifierId).trim().toLowerCase());
@@ -91,9 +85,10 @@ function sortCoursesByRequestedOrder(courses, productIdSet) {
 
 /**
  * Build one row per matching course from the Course model: real enrollment if present,
- * otherwise a catalog-only row (isEnrolled: false) so RevenueCat / productIds still surface the course.
+ * otherwise a catalog-only row (isEnrolled: false).
+ * (Not used by {@link getUserEnrollments}; kept for reuse / tooling.)
  */
-async function buildEnrollmentListFromCatalog(userId, productIdSet) {
+export async function buildEnrollmentListFromCatalog(userId, productIdSet) {
   let courses = await fetchActiveCoursesByProductIdentifiers(productIdSet);
   courses = sortCoursesByRequestedOrder(courses, productIdSet);
   if (!courses.length) return [];
@@ -113,7 +108,6 @@ async function buildEnrollmentListFromCatalog(userId, productIdSet) {
     if (e) {
       return { ...e, course, isEnrolled: true };
     }
-    // No Enrollment document — omit _id/timestamps so clients don't treat null as a valid id
     return {
       user: userId,
       course,
@@ -277,83 +271,9 @@ const enroll = async (req) => {
 const getUserEnrollments = async (req) => {
   try {
     const userId = req.userId;
-    let enrollments;
-
-    const productIdSet = parseProductIdsFromQuery(req.query);
-
-    const revenueCat = {
-      applied: false,
-      subscriberFound: null,
-      nonSubscriptionProductKeys: [],
-      mode: "none",
-      requestedProductIds: [],
-    };
-
-    if (productIdSet.size > 0) {
-      revenueCat.mode = "product_ids_query";
-      revenueCat.applied = true;
-      revenueCat.requestedProductIds = [...productIdSet];
-      enrollments = await buildEnrollmentListFromCatalog(userId, productIdSet);
-      revenueCat.catalogCoursesFound = enrollments.length;
-      revenueCat.catalogOnlyCount = enrollments.filter((e) => e.catalogOnly).length;
-
-      if (process.env.REVENUE_CAT_TOKEN) {
-        try {
-          const rcJson = await fetchRevenueCatSubscriber(userId);
-          if (rcJson === null) {
-            revenueCat.subscriberFound = false;
-            revenueCat.nonSubscriptionProductKeys = [];
-          } else {
-            if (rcJson.request_date) revenueCat.requestDate = rcJson.request_date;
-            revenueCat.subscriberFound = true;
-            revenueCat.nonSubscriptionProductKeys = [
-              ...extractNonSubscriptionProductKeys(rcJson),
-            ];
-          }
-        } catch (err) {
-          revenueCat.revenueCatError = err.message || "RevenueCat request failed";
-          revenueCat.subscriberFound = null;
-        }
-      } else {
-        revenueCat.reason = "revenuecat_not_configured";
-      }
-    } else {
-      enrollments = await Enrollment.getUserEnrollments(userId);
-      if (process.env.REVENUE_CAT_TOKEN) {
-        revenueCat.mode = "revenuecat_non_subscriptions";
-        try {
-          const rcJson = await fetchRevenueCatSubscriber(userId);
-          if (rcJson === null) {
-            revenueCat.subscriberFound = false;
-            revenueCat.applied = true;
-            revenueCat.nonSubscriptionProductKeys = [];
-            enrollments = filterEnrollmentsByRevenueCatProducts(
-              enrollments,
-              new Set()
-            );
-          } else {
-            if (rcJson.request_date) revenueCat.requestDate = rcJson.request_date;
-            const keys = extractNonSubscriptionProductKeys(rcJson);
-            revenueCat.subscriberFound = true;
-            revenueCat.applied = true;
-            revenueCat.nonSubscriptionProductKeys = [...keys];
-            enrollments = filterEnrollmentsByRevenueCatProducts(
-              enrollments,
-              keys
-            );
-          }
-        } catch (err) {
-          revenueCat.applied = false;
-          revenueCat.error = err.message || "RevenueCat request failed";
-          revenueCat.subscriberFound = null;
-        }
-      } else {
-        revenueCat.reason = "revenuecat_not_configured";
-      }
-    }
-
+    const enrollments = await Enrollment.getUserEnrollments(userId);
     const list = await enrichEnrollmentsListWithVideos(enrollments, userId);
-    return { enrollments: list, revenueCat };
+    return { enrollments: list };
   } catch (err) {
     throw err;
   }

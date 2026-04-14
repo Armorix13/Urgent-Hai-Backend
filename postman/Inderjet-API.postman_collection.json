@@ -1406,18 +1406,11 @@
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/enrollment?productIds=vocal_course,abc_product",
+              "raw": "{{baseUrl}}/api/v1/enrollment",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "enrollment"],
-              "query": [
-                {
-                  "key": "productIds",
-                  "value": "vocal_course,abc_product",
-                  "description": "Optional. Comma-separated or repeat param. Matches **course.identifierId** case-insensitively. Alias: **product_ids**."
-                }
-              ]
+              "path": ["api", "v1", "enrollment"]
             },
-            "description": "Requires Bearer. **?productIds=** — Loads **courses** from DB by **identifierId** (case-insensitive), merges enrollment when present; **catalogOnly** rows without enrollment still include course + videos. **revenueCat** + **catalogCoursesFound** / **catalogOnlyCount** when applicable. Omit **productIds** for full enrollment list or RevenueCat non-subscriptions when **REVENUE_CAT_TOKEN** is set. **product_ids** alias supported."
+            "description": "Requires Bearer. Returns **enrollments** from the database (active, non-expired) with **course** populated + videos / watch policy / **myRating**. **productIds** query params are ignored by this endpoint (legacy clients may still send them)."
           }
         },
         {
