@@ -47,7 +47,9 @@ const addCourseSchema = {
       }),
     benefits: Joi.array().items(Joi.string().max(500)).optional(),
     category: Joi.string().trim().max(100).required(),
-    thumbnail: Joi.string().trim().optional(),
+    thumbnail: Joi.alternatives()
+      .try(Joi.string().trim().max(2000), Joi.valid(null, ""))
+      .optional(),
     duration: Joi.string().trim().optional(),
     level: Joi.string().valid("beginner", "intermediate", "advanced").optional(),
     tags: Joi.array().items(Joi.string().lowercase()).optional(),
@@ -72,7 +74,9 @@ const updateCourseSchema = {
     price: Joi.number().min(0).optional(),
     benefits: Joi.array().items(Joi.string().max(500)).optional(),
     category: Joi.string().trim().max(100).optional(),
-    thumbnail: Joi.string().trim().optional(),
+    thumbnail: Joi.alternatives()
+      .try(Joi.string().trim().max(2000), Joi.valid(null, ""))
+      .optional(),
     duration: Joi.string().trim().optional(),
     level: Joi.string().valid("beginner", "intermediate", "advanced").optional(),
     tags: Joi.array().items(Joi.string().lowercase()).optional(),
@@ -101,6 +105,8 @@ const getCoursesSchema = {
     maxPrice: Joi.number().optional(),
     tags: Joi.string().optional(),
     identifierId: Joi.string().trim().optional(),
+    /** Opt-in: collaborator JWT + `mine=true` limits list to that collaborator's courses (default: full list). */
+    mine: Joi.string().valid("true", "false").optional(),
   }),
 };
 

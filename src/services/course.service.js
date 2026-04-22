@@ -110,6 +110,15 @@ async function assertIdentifierIdUnique(identifierId, excludeCourseId) {
   }
 }
 
+/** Set `courseContent[].order` from array index (client may omit `order`). */
+function applySequentialOrderToCourseContent(courseFields) {
+  if (!courseFields?.courseContent?.length) return;
+  courseFields.courseContent = courseFields.courseContent.map((item, index) => ({
+    ...item,
+    order: index,
+  }));
+}
+
 function rethrowDuplicateIdentifierId(err) {
   if (err && err.code === 11000) {
     const kp = err.keyPattern;
@@ -133,6 +142,7 @@ const addCourse = async (req) => {
       throw new Error("Price is required for paid courses");
     }
     const { courseFields, videos, hasVideos } = splitCourseBody(body);
+    applySequentialOrderToCourseContent(courseFields);
 
     await assertIdentifierIdUnique(courseFields.identifierId);
     await assertCollaboratorExistsIfSet(courseFields.collaborators);
@@ -231,7 +241,7 @@ const getCoursesWithPagination = async (req) => {
   }
 };
 
-/** Same as public list but includes inactive and soft-deleted courses (no isActive / isDeleted filter). No auth in route — protect at gateway if needed. */
+/** Same as public list but includes inactive and soft-deleted courses (no isActive / isDeleted filter). Collaborator Bearer token limits rows to `course.collaborators` === that id. */
 const getCoursesWithPaginationAdmin = async (req) => {
   try {
     const {
@@ -251,6 +261,14 @@ const getCoursesWithPaginationAdmin = async (req) => {
 
     const tagsArr = tags ? tags.split(",").map((t) => t.trim().toLowerCase()) : null;
 
+    /** Mobile / legacy: omit `mine` → full admin list even with a collaborator token. Web passes `mine=true`. */
+    const filterByCollaboratorId =
+      req.authKind === "collaborator" &&
+      req.collaboratorId &&
+      String(req.query.mine).toLowerCase() === "true"
+        ? req.collaboratorId
+        : null;
+
     const result = await Course.getCoursesWithPagination({
       page: page || 1,
       limit: limit || 10,
@@ -266,6 +284,7 @@ const getCoursesWithPaginationAdmin = async (req) => {
       isActive: null,
       identifierId: identifierId?.trim?.() || null,
       adminIncludeAll: true,
+      filterByCollaboratorId,
     });
 
     let courses = result.courses;
@@ -367,6 +386,7 @@ const updateCourse = async (req) => {
     const { id } = req.params;
     const updates = sanitizeCoursePayload(req.body);
     const { courseFields, videos, hasVideos } = splitCourseBody(updates);
+    applySequentialOrderToCourseContent(courseFields);
 
     if (Object.prototype.hasOwnProperty.call(courseFields, "identifierId")) {
       const v = courseFields.identifierId;

@@ -113,6 +113,7 @@ const addCollaborator = async (req) => {
       address,
       coverProfile,
       password,
+      bio,
     } = req.body;
     const profession = resolveProfessionFromBody(req.body);
 
@@ -131,6 +132,7 @@ const addCollaborator = async (req) => {
         : {}),
       ...(address !== undefined ? { address } : {}),
       ...(coverProfile !== undefined ? { coverProfile } : {}),
+      ...(bio !== undefined ? { bio: String(bio).trim() } : {}),
       ...(hashedPassword ? { password: hashedPassword } : {}),
     });
 
@@ -154,6 +156,7 @@ const updateCollaborator = async (req) => {
       coverProfile,
       password,
       sections,
+      bio,
     } = req.body;
 
     const collaborator = await getCollaboratorById(id);
@@ -172,6 +175,7 @@ const updateCollaborator = async (req) => {
     }
     if (address !== undefined) collaborator.address = address;
     if (coverProfile !== undefined) collaborator.coverProfile = coverProfile;
+    if (bio !== undefined) collaborator.bio = bio == null ? "" : String(bio).trim();
     if (password != null && String(password).trim() !== "") {
       collaborator.password = await helper.hashPassword(String(password));
     }
@@ -214,6 +218,121 @@ const getCollaboratorByIdService = async (req) => {
     console.error("Get Collaborator Error:", error);
     throw new Error(error.message || "Failed to get collaborator");
   }
+};
+
+/** GET /collaborator/me — authenticated collaborator; no `sections` payload (light). */
+const getCollaboratorMe = async (req) => {
+  if (req.authKind !== "collaborator" || !req.collaboratorId) {
+    const err = new Error("Collaborator authentication required");
+    err.statusCode = 403;
+    throw err;
+  }
+  const id = String(req.collaboratorId);
+  const collaborator = await getCollaboratorById(id);
+  if (!collaborator) {
+    const err = new Error("Collaborator not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  const sectionCount = await Section.countDocuments({ collaboratorId: id });
+  const hasPassword =
+    collaborator.password != null && String(collaborator.password).trim() !== "";
+  return {
+    ...withProfessionAliases(collaborator),
+    sectionCount,
+    hasPassword,
+  };
+};
+
+/** PATCH /collaborator/me — profile fields + optional password; never updates `sections`. */
+const updateCollaboratorMe = async (req) => {
+  if (req.authKind !== "collaborator" || !req.collaboratorId) {
+    const err = new Error("Collaborator authentication required");
+    err.statusCode = 403;
+    throw err;
+  }
+  const id = String(req.collaboratorId);
+  const collaborator = await getCollaboratorById(id);
+  if (!collaborator) {
+    const err = new Error("Collaborator not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const {
+    name,
+    profile,
+    phoneNumber,
+    email,
+    address,
+    coverProfile,
+    bio,
+    currentPassword,
+    newPassword,
+  } = req.body;
+
+  const np = newPassword != null ? String(newPassword).trim() : "";
+  if (np.length > 0) {
+    const hasExisting =
+      collaborator.password != null && String(collaborator.password).trim() !== "";
+    if (hasExisting) {
+      const cp = currentPassword != null ? String(currentPassword) : "";
+      if (!cp) {
+        const err = new Error("Current password is required to set a new password");
+        err.statusCode = 400;
+        throw err;
+      }
+      const ok = await helper.verifyPassword(cp, collaborator.password);
+      if (!ok) {
+        const err = new Error("Current password is incorrect");
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    collaborator.password = await helper.hashPassword(np);
+    collaborator.jti = helper.generateRandomJti(16);
+  }
+
+  if (name !== undefined) collaborator.name = name;
+  if (profile !== undefined) collaborator.profile = profile;
+  if (phoneNumber !== undefined) collaborator.phoneNumber = phoneNumber;
+  if (email !== undefined) {
+    collaborator.email =
+      email == null || String(email).trim() === ""
+        ? null
+        : String(email).trim().toLowerCase();
+  }
+  if (address !== undefined) collaborator.address = address;
+  if (coverProfile !== undefined) collaborator.coverProfile = coverProfile;
+  if (bio !== undefined) collaborator.bio = bio == null ? "" : String(bio).trim();
+  const nextProfession = resolveProfessionFromBody(req.body);
+  if (nextProfession !== undefined) collaborator.profession = nextProfession;
+
+  await collaborator.save();
+  const sectionCount = await Section.countDocuments({ collaboratorId: id });
+  const hasPassword =
+    collaborator.password != null && String(collaborator.password).trim() !== "";
+
+  const collaboratorPayload = {
+    ...withProfessionAliases(collaborator),
+    sectionCount,
+    hasPassword,
+  };
+
+  if (np.length > 0) {
+    const payload = {
+      _id: collaborator._id,
+      jti: collaborator.jti,
+      authKind: "collaborator",
+    };
+    return {
+      collaborator: collaboratorPayload,
+      access_token: helper.generateToken(payload, "access"),
+      refresh_token: helper.generateToken(payload, "refresh"),
+    };
+  }
+
+  return { collaborator: collaboratorPayload };
 };
 
 const getAllCollaboratorsService = async (req) => {
@@ -260,6 +379,30 @@ async function findCollaboratorForPasswordSet({ email, phoneNumber }) {
   return Collaborator.findOne({ phoneNumber: phoneTrim });
 }
 
+/** POST /collaborator/lookup — resolve profile and whether a password is set (no secrets). */
+const lookupCollaborator = async (req) => {
+  try {
+    const { email, phoneNumber } = req.body;
+    const collaborator = await findCollaboratorForPasswordSet({
+      email,
+      phoneNumber,
+    });
+    if (!collaborator) {
+      throw new Error("Collaborator not found.");
+    }
+    const hasPassword =
+      collaborator.password != null && String(collaborator.password).trim() !== "";
+    return {
+      hasPassword,
+      email: collaborator.email ?? null,
+      phoneNumber: collaborator.phoneNumber ?? null,
+      name: collaborator.name ?? null,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
 const setCollaboratorPassword = async (req) => {
   try {
     const { email, phoneNumber, password } = req.body;
@@ -274,6 +417,67 @@ const setCollaboratorPassword = async (req) => {
   } catch (error) {
     console.error("Set collaborator password error:", error);
     throw new Error(error.message || "Failed to set password");
+  }
+};
+
+const loginCollaborator = async (req) => {
+  try {
+    const { email, phoneNumber, password } = req.body;
+    const collaborator = await findCollaboratorForPasswordSet({
+      email,
+      phoneNumber,
+    });
+
+    if (!collaborator) {
+      throw new Error("Collaborator not found.");
+    }
+
+    const hasPassword =
+      collaborator.password != null && String(collaborator.password).trim() !== "";
+
+    if (!hasPassword) {
+      return {
+        needsPasswordSetup: true,
+        phoneNumber: collaborator.phoneNumber ?? null,
+        email: collaborator.email ?? null,
+      };
+    }
+
+    const isPasswordCorrect = await helper.verifyPassword(
+      password,
+      collaborator.password
+    );
+
+    if (!isPasswordCorrect) {
+      throw new Error("Invalid credentials.");
+    }
+
+    const jti = helper.generateRandomJti(16);
+    await Collaborator.findByIdAndUpdate(collaborator._id, { $set: { jti } });
+
+    const collaboratorObject = await Collaborator.findById(collaborator._id).lean();
+
+    const payload = {
+      _id: collaboratorObject._id,
+      jti: collaboratorObject.jti,
+      authKind: "collaborator",
+    };
+
+    const access_token = helper.generateToken(payload, "access");
+    const refresh_token = helper.generateToken(payload, "refresh");
+
+    const {
+      password: _,
+      jti: __,
+      ...rest
+    } = withProfessionAliases(collaboratorObject);
+
+    return {
+      needsPasswordSetup: false,
+      collaborator: { ...rest, access_token, refresh_token },
+    };
+  } catch (error) {
+    throw error;
   }
 };
 
@@ -295,7 +499,11 @@ export const collaboratorService = {
   addCollaborator,
   updateCollaborator,
   getCollaboratorById: getCollaboratorByIdService,
+  getCollaboratorMe,
+  updateCollaboratorMe,
   getAllCollaborators: getAllCollaboratorsService,
+  lookupCollaborator,
   setCollaboratorPassword,
+  loginCollaborator,
   deleteCollaborator,
 };

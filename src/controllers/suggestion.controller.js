@@ -15,11 +15,15 @@ const createSuggestion = async (req, res, next) => {
 
 const getAllSuggestions = async (req, res, next) => {
   try {
-    const { suggestions } = await suggestionService.getAllSuggestions(req);
+    const { suggestions, pagination, analytics, search } =
+      await suggestionService.getAllSuggestions(req);
     return res.status(200).json({
       success: true,
       message: "Suggestions fetched successfully!",
       suggestions,
+      ...(pagination ? { pagination } : {}),
+      analytics,
+      ...(search ? { search } : {}),
     });
   } catch (error) {
     next(error);

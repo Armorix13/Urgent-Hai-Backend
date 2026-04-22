@@ -38,3 +38,9 @@ export const paymentStatusType = {
   PAID: 2,
   FAILED: 3,
 };
+
+/** Course billing: 1 = paid (price required), 2 = free */
+export const courseType = {
+  PAID: 1,
+  FREE: 2,
+};

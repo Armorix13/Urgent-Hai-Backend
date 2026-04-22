@@ -210,3 +210,239 @@ export async function attachCourseRatingsForCourses(courses) {
     courseRatings: byCourse.get(c._id.toString()) ?? [],
   }));
 }
+
+const notDeleted = { isDeleted: false };
+
+function assertCollaborator(req) {
+  if (req.authKind !== "collaborator") {
+    const e = new Error("Only collaborator accounts can access this resource");
+    e.statusCode = 403;
+    throw e;
+  }
+  const raw = req.collaboratorId;
+  if (!raw || !mongoose.Types.ObjectId.isValid(String(raw))) {
+    const e = new Error("Invalid collaborator session");
+    e.statusCode = 403;
+    throw e;
+  }
+  return new mongoose.Types.ObjectId(String(raw));
+}
+
+function paginationMeta(page, limit, total) {
+  const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
+  return {
+    currentPage: page,
+    pageSize: limit,
+    totalPages,
+    totalItems: total,
+    hasNextPage: page < totalPages,
+    hasPrevPage: page > 1,
+  };
+}
+
+/**
+ * Analytics across all ratings on courses owned by this collaborator (`course.collaborators`).
+ */
+export async function getCollaboratorRatingOverview(req) {
+  const collabOid = assertCollaborator(req);
+  const myCourseIds = await Course.find({
+    ...notDeleted,
+    collaborators: collabOid,
+  }).distinct("_id");
+
+  if (!myCourseIds.length) {
+    return {
+      totalReviews: 0,
+      averageRating: 0,
+      coursesWithReviews: 0,
+      totalCourses: 0,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    };
+  }
+
+  const totalCourses = myCourseIds.length;
+  const match = { course: { $in: myCourseIds } };
+
+  const [agg, distRows, coursesWithReviews] = await Promise.all([
+    CourseRating.aggregate([
+      { $match: match },
+      { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+    ]),
+    CourseRating.aggregate([
+      { $match: match },
+      { $group: { _id: "$rating", n: { $sum: 1 } } },
+    ]),
+    CourseRating.distinct("course", match),
+  ]);
+
+  const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const row of distRows) {
+    const k = Number(row._id);
+    if (k >= 1 && k <= 5) distribution[k] = row.n;
+  }
+
+  const totalReviews = agg[0]?.count ?? 0;
+  const averageRating =
+    totalReviews > 0 ? Math.round((agg[0].avg ?? 0) * 100) / 100 : 0;
+
+  return {
+    totalReviews,
+    averageRating,
+    coursesWithReviews: coursesWithReviews.length,
+    totalCourses,
+    distribution,
+  };
+}
+
+/** Paginated courses this collaborator owns (for ratings UI). */
+export async function listCollaboratorCoursesForRatings(req) {
+  const collabOid = assertCollaborator(req);
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+  const skip = (page - 1) * limit;
+
+  const base = { ...notDeleted, collaborators: collabOid };
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const query = { ...base };
+  if (search) {
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const rx = new RegExp(escaped, "i");
+    query.$or = [{ title: rx }, { category: rx }, { identifierId: rx }];
+  }
+
+  const [courses, total] = await Promise.all([
+    Course.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select("title category thumbnail rating identifierId isActive")
+      .lean(),
+    Course.countDocuments(query),
+  ]);
+
+  return {
+    courses: courses.map((c) => ({
+      _id: c._id,
+      title: c.title,
+      category: c.category,
+      thumbnail: c.thumbnail ?? null,
+      identifierId: c.identifierId ?? null,
+      isActive: c.isActive !== false,
+      rating: c.rating ?? { average: 0, count: 0 },
+    })),
+    pagination: paginationMeta(page, limit, total),
+  };
+}
+
+/**
+ * Paginated reviews for one course; collaborator must own the course.
+ */
+export async function listReviewsForCollaboratorCourse(req) {
+  const collabOid = assertCollaborator(req);
+  const { courseId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(String(courseId))) {
+    const e = new Error("Invalid course id");
+    e.statusCode = 400;
+    throw e;
+  }
+
+  const course = await Course.findOne({
+    _id: courseId,
+    ...notDeleted,
+    collaborators: collabOid,
+  })
+    .select("title category rating")
+    .lean();
+
+  if (!course) {
+    const e = new Error("Course not found or you do not manage this course");
+    e.statusCode = 404;
+    throw e;
+  }
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 15));
+  const skip = (page - 1) * limit;
+
+  const filter = { course: courseId };
+
+  const [rows, total, summaryAgg, distRows] = await Promise.all([
+    CourseRating.find(filter)
+      .populate({ path: "user", select: "userName profileImage" })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    CourseRating.countDocuments(filter),
+    CourseRating.aggregate([
+      { $match: { course: new mongoose.Types.ObjectId(String(courseId)) } },
+      { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+    ]),
+    CourseRating.aggregate([
+      { $match: { course: new mongoose.Types.ObjectId(String(courseId)) } },
+      { $group: { _id: "$rating", n: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const row of distRows) {
+    const k = Number(row._id);
+    if (k >= 1 && k <= 5) distribution[k] = row.n;
+  }
+
+  const count = summaryAgg[0]?.count ?? 0;
+  const avg = count > 0 ? Math.round((summaryAgg[0].avg ?? 0) * 100) / 100 : 0;
+
+  return {
+    course: {
+      _id: course._id,
+      title: course.title,
+      category: course.category,
+      rating: course.rating ?? { average: 0, count: 0 },
+    },
+    summary: {
+      averageRating: avg,
+      totalReviews: count,
+      distribution,
+    },
+    reviews: rows.map((r) => formatCourseRatingRow(r)),
+    pagination: paginationMeta(page, limit, total),
+  };
+}
+
+/** Remove a learner's rating/review; collaborator must own the course. */
+export async function deleteReviewByCollaborator(req) {
+  const collabOid = assertCollaborator(req);
+  const { ratingId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(String(ratingId))) {
+    const e = new Error("Invalid rating id");
+    e.statusCode = 400;
+    throw e;
+  }
+
+  const rating = await CourseRating.findById(ratingId).lean();
+  if (!rating) {
+    const e = new Error("Review not found");
+    e.statusCode = 404;
+    throw e;
+  }
+
+  const course = await Course.findOne({
+    _id: rating.course,
+    ...notDeleted,
+    collaborators: collabOid,
+  })
+    .select("_id")
+    .lean();
+
+  if (!course) {
+    const e = new Error("Not allowed to delete this review");
+    e.statusCode = 403;
+    throw e;
+  }
+
+  await CourseRating.deleteOne({ _id: ratingId });
+  await syncCourseRatingAggregate(rating.course);
+
+  return { deleted: true, courseId: String(rating.course) };
+}

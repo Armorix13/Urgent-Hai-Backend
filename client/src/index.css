@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  /* UI copy — full italics + weight 400–900 */
+  --font-sans:
+    "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  /* Display / marketing — use `font-display` or `.font-smooch-sans` */
+  --font-display: "Smooch Sans", ui-sans-serif, sans-serif;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --app-primary: #7c3aed;
+  --app-primary-hover: #6d28d9;
+  --app-primary-soft: rgb(124 58 237 / 0.12);
+  --app-primary-soft-dark: rgb(139 92 246 / 0.18);
+  --app-page: #f3f4f6;
+  --app-surface: #ffffff;
+  --app-muted: #6b7280;
+  --app-border: #e5e7eb;
+  --app-text: #111827;
+  --app-text-secondary: #4b5563;
+}
+
+.dark {
+  --app-primary: #8b5cf6;
+  --app-primary-hover: #7c3aed;
+  --app-primary-soft: rgb(139 92 246 / 0.16);
+  --app-primary-soft-dark: rgb(167 139 250 / 0.12);
+  --app-page: #09090b;
+  --app-surface: #18181b;
+  --app-muted: #a1a1aa;
+  --app-border: #27272a;
+  --app-text: #fafafa;
+  --app-text-secondary: #d4d4d8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--app-page);
+  color: var(--app-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-weight: 400;
+  font-feature-settings:
+    "kern" 1,
+    "liga" 1;
+}
+
+/* Headings default to Smooch Sans; weight from `font-bold` / `font-semibold` etc. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+/**
+ * Smooch Sans stack — set `font-weight` with Tailwind (`font-light` … `font-black`) or CSS.
+ * Matches: .smooch-sans-* { font-family: "Smooch Sans"; font-optical-sizing: auto; … }
+ */
+.font-smooch-sans {
+  font-family: "Smooch Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}

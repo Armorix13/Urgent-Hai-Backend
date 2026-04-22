@@ -62,6 +62,7 @@ const courseSchema = new mongoose.Schema(
       trim: true,
       maxlength: 2000,
     },
+    /** 1 = paid (requires price), 2 = free — see `courseTypeName` virtual */
     courseType: {
       type: Number,
       enum: [1, 2],
@@ -194,9 +195,15 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
     isActive = null,
     identifierId = null,
     adminIncludeAll = false,
+    /** When set, only courses owned by this collaborator (`collaborators` ref). */
+    filterByCollaboratorId = null,
   } = options;
 
   const query = adminIncludeAll ? {} : { isDeleted: false };
+
+  if (filterByCollaboratorId != null && String(filterByCollaboratorId).trim() !== "") {
+    query.collaborators = filterByCollaboratorId;
+  }
 
   if (!adminIncludeAll) {
     if (isActive !== null) {

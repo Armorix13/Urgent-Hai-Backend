@@ -270,6 +270,9 @@ const enroll = async (req) => {
 
 const getUserEnrollments = async (req) => {
   try {
+    if (req.authKind === "collaborator") {
+      return { enrollments: [] };
+    }
     const userId = req.userId;
     const enrollments = await Enrollment.getUserEnrollments(userId);
     const list = await enrichEnrollmentsListWithVideos(enrollments, userId);

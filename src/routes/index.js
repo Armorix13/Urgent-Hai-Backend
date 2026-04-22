@@ -19,6 +19,7 @@ import courseVideoRoute from "./courseVideo.route.js";
 import enrollmentRoute from "./enrollment.route.js";
 import googleDriveRoute from "./googleDrive.route.js";
 import ratingRoute from "./rating.route.js";
+import dashboardRoute from "./dashboard.route.js";
 
 const router = express.Router();
 
@@ -42,5 +43,6 @@ router.use("/course-video", courseVideoRoute);
 router.use("/enrollment", enrollmentRoute);
 router.use("/google-drive", googleDriveRoute);
 router.use("/rating", ratingRoute);
+router.use("/dashboard", dashboardRoute);
 
 export default router;

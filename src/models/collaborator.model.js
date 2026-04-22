@@ -32,7 +32,18 @@ const collaboratorSchema = new Schema(
       type: String,
       trim: true,
     },
+    /** Short public bio / “About” (optional). */
+    bio: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 500,
+    },
     password: {
+      type: String,
+      default: null,
+    },
+    jti: {
       type: String,
       default: null,
     },
@@ -45,12 +56,14 @@ const collaboratorSchema = new Schema(
 collaboratorSchema.set("toJSON", {
   transform(_doc, ret) {
     delete ret.password;
+    delete ret.jti;
     return ret;
   },
 });
 collaboratorSchema.set("toObject", {
   transform(_doc, ret) {
     delete ret.password;
+    delete ret.jti;
     return ret;
   },
 });

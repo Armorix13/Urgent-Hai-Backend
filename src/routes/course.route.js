@@ -7,9 +7,10 @@ import courseSchema from "../schema/course.schema.js";
 
 const courseRoute = express.Router();
 
-// Admin-style list: all courses (no isActive / isDeleted filter). No auth middleware — secure at your edge if needed.
+// Admin-style list: all courses by default. Opt-in: `?mine=true` + collaborator JWT → only that collaborator's courses.
 courseRoute.get(
   "/admin/all",
+  optionalAuth,
   validate(courseSchema.getCoursesSchema),
   courseController.getCoursesAdmin
 );
@@ -41,12 +42,14 @@ courseRoute.post(
   validate(courseSchema.addCourseSchema),
   courseController.addCourse
 );
+
 courseRoute.put(
   "/:id",
   authenticate,
   validate(courseSchema.updateCourseSchema),
   courseController.updateCourse
 );
+
 courseRoute.delete(
   "/:id",
   authenticate,

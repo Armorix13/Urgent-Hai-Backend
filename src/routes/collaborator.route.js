@@ -7,6 +7,18 @@ import collaboratorValidationSchemas from "../schema/collaborator.schema.js";
 const collaboratorRoute = express.Router();
 
 collaboratorRoute.post(
+  "/lookup",
+  validate(collaboratorValidationSchemas.lookupCollaboratorSchema),
+  collaboratorController.lookupCollaborator
+);
+
+collaboratorRoute.post(
+  "/login",
+  validate(collaboratorValidationSchemas.loginCollaboratorSchema),
+  collaboratorController.loginCollaborator
+);
+
+collaboratorRoute.post(
   "/add",
   validate(collaboratorValidationSchemas.addCollaboratorSchema),
 //   authenticate,
@@ -17,6 +29,14 @@ collaboratorRoute.post(
   "/set-password",
   validate(collaboratorValidationSchemas.setCollaboratorPasswordSchema),
   collaboratorController.setCollaboratorPassword
+);
+
+collaboratorRoute.get("/me", authenticate, collaboratorController.getCollaboratorMe);
+collaboratorRoute.patch(
+  "/me",
+  authenticate,
+  validate(collaboratorValidationSchemas.updateCollaboratorMeSchema),
+  collaboratorController.updateCollaboratorMe
 );
 
 collaboratorRoute.put(

@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import Collaborator from "../models/collaborator.model.js";
 import { helper } from "../utils/helper.js";
 
 const authenticate = async (req, res, next) => {
@@ -32,6 +33,21 @@ const authenticate = async (req, res, next) => {
         data: null,
       });
     }
+
+    if (decoded.authKind === "collaborator") {
+      const collaborator = await Collaborator.findById(decoded._id);
+      if (!collaborator || collaborator.jti !== decoded.jti) {
+        return res.status(401).json({
+          status: 401,
+          message: "Invalid token, please authenticate",
+          data: null,
+        });
+      }
+      req.collaboratorId = decoded._id;
+      req.authKind = "collaborator";
+      return next();
+    }
+
     const user = await User.findById(decoded._id);
     if (!user || user.jti !== decoded.jti) {
       return res.status(401).json({
@@ -41,6 +57,7 @@ const authenticate = async (req, res, next) => {
       });
     }
     req.userId = decoded._id;
+    req.authKind = "user";
     next();
   } catch (error) {
     next(error);
