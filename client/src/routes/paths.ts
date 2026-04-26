@@ -15,6 +15,14 @@ export const ROUTES = {
   },
 } as const;
 
+/** Login URL for full page navigation (matches Vite `base` / router `basename`). */
+export function loginPagePath(): string {
+  const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  const login = ROUTES.login.startsWith("/") ? ROUTES.login : `/${ROUTES.login}`;
+  const path = `${base}${login}`;
+  return path.replace(/([^:]\/)\/+/g, "$1") || "/login";
+}
+
 export function courseDetailPath(id: string) {
   return `${D}/course/${id}`;
 }

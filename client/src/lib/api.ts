@@ -1,5 +1,6 @@
-import { API_BASE } from "./env";
 import { COLLABORATOR_TOKEN_STORAGE_KEY } from "../context/AuthContext";
+import { isUnauthorizedJwtExpired, notifyAuthExpired } from "./authExpired";
+import { API_BASE } from "./env";
 
 const SESSION_KEY = "raag-session";
 
@@ -60,6 +61,7 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!res.ok) {
+    if (isUnauthorizedJwtExpired(res.status, data)) notifyAuthExpired();
     const msg =
       typeof data === "object" && data !== null && "message" in data
         ? String((data as ApiErrorBody).message)
@@ -109,6 +111,7 @@ export async function uploadImageFile(file: File): Promise<FileUploadResponse> {
   }
 
   if (!res.ok) {
+    if (isUnauthorizedJwtExpired(res.status, data)) notifyAuthExpired();
     const msg =
       typeof data === "object" && data !== null && "message" in data
         ? String((data as ApiErrorBody).message)

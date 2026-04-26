@@ -1,6 +1,7 @@
 import * as Label from "@radix-ui/react-label";
 import * as Select from "@radix-ui/react-select";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   createCourse,
@@ -34,15 +35,6 @@ function collaboratorRefToId(ref: CourseCollaboratorRef): string {
   return "";
 }
 
-type ContentRow = {
-  key: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  duration: string;
-  isPreview: boolean;
-};
-
 type VideoRow = {
   key: string;
   videoUrl: string;
@@ -50,17 +42,6 @@ type VideoRow = {
   description: string;
   isActive: boolean;
 };
-
-function emptyContentRow(): ContentRow {
-  return {
-    key: newRowKey(),
-    title: "",
-    description: "",
-    videoUrl: "",
-    duration: "",
-    isPreview: false,
-  };
-}
 
 function emptyVideoRow(): VideoRow {
   return {
@@ -72,11 +53,113 @@ function emptyVideoRow(): VideoRow {
   };
 }
 
-function splitLines(text: string) {
-  return text
-    .split(/\r?\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+type ChipListMode = "tags" | "lines";
+
+function piecesFromDraft(raw: string, mode: ChipListMode): string[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  if (mode === "tags") {
+    return trimmed
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  const byLine = trimmed.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (byLine.length > 1) return byLine;
+  return trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function ChipListField({
+  id,
+  label,
+  items,
+  onChange,
+  placeholder,
+  mode,
+}: {
+  id: string;
+  label: string;
+  items: string[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  mode: ChipListMode;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function addFromDraft() {
+    const pieces = piecesFromDraft(draft, mode);
+    if (pieces.length === 0) return;
+    const next = [...items];
+    for (const p of pieces) {
+      const exists =
+        mode === "tags"
+          ? next.some((x) => x.toLowerCase() === p.toLowerCase())
+          : next.includes(p);
+      if (!exists) next.push(p);
+    }
+    onChange(next);
+    setDraft("");
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label.Root htmlFor={id} className="text-sm font-medium text-[var(--app-text)]">
+        {label}
+      </Label.Root>
+      <div
+        className="rounded-xl border p-4 ring-1 ring-[var(--app-border)]"
+        style={{ background: "var(--app-page)" }}
+      >
+        <div className="flex min-h-9 flex-wrap gap-2">
+          {items.length === 0 ? (
+            <span className="text-xs text-[var(--app-muted)]">No items yet — add below.</span>
+          ) : (
+            items.map((item, idx) => (
+              <span
+                key={`${idx}-${item.slice(0, 24)}`}
+                className="inline-flex max-w-full items-center gap-1 rounded-full border border-[var(--app-border)] bg-[var(--app-surface)] py-1 pl-3 pr-1 text-sm text-[var(--app-text)] shadow-sm"
+              >
+                <span className="truncate" title={item}>
+                  {item}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onChange(items.filter((_, i) => i !== idx))}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--app-muted)] transition hover:bg-[var(--app-surface-muted)] hover:text-[var(--app-text)]"
+                  aria-label={`Remove ${item}`}
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+          <input
+            id={id}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addFromDraft();
+              }
+            }}
+            placeholder={placeholder}
+            className={`${inputClass} min-w-0 flex-1`}
+          />
+          <button
+            type="button"
+            onClick={addFromDraft}
+            className="shrink-0 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+            style={{ background: "var(--app-primary)" }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CourseFormPage() {
@@ -98,13 +181,11 @@ export default function CourseFormPage() {
   const [price, setPrice] = useState("0");
   const [category, setCategory] = useState("");
   const [level, setLevel] = useState<(typeof levels)[number]>("beginner");
-  const [duration, setDuration] = useState("");
   const [thumbnail, setThumbnail] = useState("");
-  const [tags, setTags] = useState("");
-  const [benefitsText, setBenefitsText] = useState("");
-  const [prerequisitesText, setPrerequisitesText] = useState("");
-  const [learningOutcomesText, setLearningOutcomesText] = useState("");
-  const [contentRows, setContentRows] = useState<ContentRow[]>([]);
+  const [tagItems, setTagItems] = useState<string[]>([]);
+  const [benefitsItems, setBenefitsItems] = useState<string[]>([]);
+  const [prerequisitesItems, setPrerequisitesItems] = useState<string[]>([]);
+  const [learningOutcomesItems, setLearningOutcomesItems] = useState<string[]>([]);
   const [videoRows, setVideoRows] = useState<VideoRow[]>([]);
   const [isActive, setIsActive] = useState(true);
   /** Collaborator MongoDB `_id` from login: stored on user, or decoded from JWT if needed. */
@@ -148,29 +229,14 @@ export default function CourseFormPage() {
             ? (course.level as (typeof levels)[number])
             : "beginner",
         );
-        setDuration(course.duration ?? "");
         setThumbnail(course.thumbnail ?? "");
-        setTags((course.tags ?? []).join(", "));
-        setBenefitsText((course.benefits ?? []).join("\n"));
-        setPrerequisitesText((course.prerequisites ?? []).join("\n"));
-        setLearningOutcomesText((course.learningOutcomes ?? []).join("\n"));
+        setTagItems(
+          [...new Set((course.tags ?? []).map((t) => String(t).trim().toLowerCase()).filter(Boolean))],
+        );
+        setBenefitsItems([...(course.benefits ?? [])].map((s) => String(s).trim()).filter(Boolean));
+        setPrerequisitesItems([...(course.prerequisites ?? [])].map((s) => String(s).trim()).filter(Boolean));
+        setLearningOutcomesItems([...(course.learningOutcomes ?? [])].map((s) => String(s).trim()).filter(Boolean));
         setIsActive(course.isActive !== false);
-
-        const cc = [...(course.courseContent ?? [])].sort(
-          (a, b) => (a.order ?? 0) - (b.order ?? 0),
-        );
-        setContentRows(
-          cc.length
-            ? cc.map((item) => ({
-                key: item._id ?? newRowKey(),
-                title: item.title ?? "",
-                description: item.description ?? "",
-                videoUrl: item.videoUrl ?? "",
-                duration: item.duration ?? "",
-                isPreview: Boolean(item.isPreview),
-              }))
-            : [],
-        );
 
         const vids = [...(course.videos ?? [])].sort(
           (a, b) => (a.order ?? 0) - (b.order ?? 0),
@@ -198,20 +264,6 @@ export default function CourseFormPage() {
       cancelled = true;
     };
   }, [isEdit, courseId, user?.accountType, sessionCollaboratorId]);
-
-  function addContentRow() {
-    setContentRows((rows) => [...rows, emptyContentRow()]);
-  }
-
-  function removeContentRow(key: string) {
-    setContentRows((rows) => rows.filter((r) => r.key !== key));
-  }
-
-  function updateContentRow(key: string, patch: Partial<ContentRow>) {
-    setContentRows((rows) =>
-      rows.map((r) => (r.key === key ? { ...r, ...patch } : r)),
-    );
-  }
 
   function addVideoRow() {
     setVideoRows((rows) => [...rows, emptyVideoRow()]);
@@ -255,21 +307,6 @@ export default function CourseFormPage() {
     setSaving(true);
     setError(null);
 
-    const tagList = tags
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
-
-    const courseContentPayload = contentRows
-      .filter((row) => row.title.trim())
-      .map((row) => ({
-        title: row.title.trim(),
-        description: row.description.trim() || undefined,
-        videoUrl: row.videoUrl.trim() || undefined,
-        duration: row.duration.trim() || undefined,
-        isPreview: Boolean(row.isPreview),
-      }));
-
     const videosPayload = videoRows
       .filter((row) => row.videoUrl.trim())
       .map((row) => ({
@@ -279,10 +316,6 @@ export default function CourseFormPage() {
         isActive: row.isActive !== false,
       }));
 
-    const benefits = splitLines(benefitsText);
-    const prerequisites = splitLines(prerequisitesText);
-    const learningOutcomes = splitLines(learningOutcomesText);
-
     const body: AddCourseBody = {
       title: title.trim(),
       description: description.trim(),
@@ -291,13 +324,11 @@ export default function CourseFormPage() {
       collaboratorId: resolvedCollaborator,
       identifierId: identifierId.trim() || null,
       thumbnail: thumbnail.trim() ? thumbnail.trim() : null,
-      duration: duration.trim() || undefined,
       level,
-      tags: tagList.length ? tagList : undefined,
-      benefits: benefits.length ? benefits : undefined,
-      prerequisites: prerequisites.length ? prerequisites : undefined,
-      learningOutcomes: learningOutcomes.length ? learningOutcomes : undefined,
-      courseContent: courseContentPayload.length ? courseContentPayload : undefined,
+      tags: tagItems.length ? tagItems : undefined,
+      benefits: benefitsItems.length ? benefitsItems : undefined,
+      prerequisites: prerequisitesItems.length ? prerequisitesItems : undefined,
+      learningOutcomes: learningOutcomesItems.length ? learningOutcomesItems : undefined,
       videos: videosPayload,
       isActive,
     };
@@ -363,7 +394,7 @@ export default function CourseFormPage() {
             {isEdit ? "Edit course" : "Add course"}
           </h2>
           <p className="mt-1 text-sm text-[var(--app-muted)]">
-            Matches <code className="rounded bg-[var(--app-page)] px-1.5 py-0.5 text-xs">POST /api/v1/course</code> — embed lessons, playlist videos, and metadata.
+            Matches <code className="rounded bg-[var(--app-page)] px-1.5 py-0.5 text-xs">POST /api/v1/course</code> — course videos and metadata.
           </p>
         </div>
         <Link
@@ -559,19 +590,6 @@ export default function CourseFormPage() {
               </Select.Root>
             </div>
 
-            <div className="space-y-2">
-              <Label.Root htmlFor="duration" className="text-sm font-medium text-[var(--app-text)]">
-                Duration
-              </Label.Root>
-              <input
-                id="duration"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="e.g. 10h"
-                className={inputClass}
-              />
-            </div>
-
             <div className="space-y-2 sm:col-span-2">
               <Label.Root htmlFor="thumbnail" className="text-sm font-medium text-[var(--app-text)]">
                 Thumbnail URL
@@ -586,16 +604,14 @@ export default function CourseFormPage() {
               />
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label.Root htmlFor="tags" className="text-sm font-medium text-[var(--app-text)]">
-                Tags (comma-separated)
-              </Label.Root>
-              <input
+            <div className="sm:col-span-2">
+              <ChipListField
                 id="tags"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="raag, beginner"
-                className={inputClass}
+                label="Tags"
+                items={tagItems}
+                onChange={setTagItems}
+                placeholder="Type a tag and tap Add — or several separated by commas"
+                mode="tags"
               />
             </div>
 
@@ -620,152 +636,44 @@ export default function CourseFormPage() {
 
         <div className={sectionClass} style={{ borderColor: "var(--app-border)", background: "var(--app-surface)" }}>
           <h3 className="text-base font-semibold text-[var(--app-text)]">Benefits, prerequisites, outcomes</h3>
-          <p className="text-xs text-[var(--app-muted)]">One line per item.</p>
-          <div className="grid gap-5 sm:grid-cols-1">
-            <div className="space-y-2">
-              <Label.Root htmlFor="benefits" className="text-sm font-medium text-[var(--app-text)]">
-                Benefits
-              </Label.Root>
-              <textarea
-                id="benefits"
-                rows={3}
-                value={benefitsText}
-                onChange={(e) => setBenefitsText(e.target.value)}
-                placeholder={"Lifetime access\nCommunity Q&A"}
-                className={`${inputClass} resize-y min-h-[80px]`}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label.Root htmlFor="prereq" className="text-sm font-medium text-[var(--app-text)]">
-                Prerequisites
-              </Label.Root>
-              <textarea
-                id="prereq"
-                rows={3}
-                value={prerequisitesText}
-                onChange={(e) => setPrerequisitesText(e.target.value)}
-                className={`${inputClass} resize-y min-h-[80px]`}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label.Root htmlFor="outcomes" className="text-sm font-medium text-[var(--app-text)]">
-                Learning outcomes
-              </Label.Root>
-              <textarea
-                id="outcomes"
-                rows={3}
-                value={learningOutcomesText}
-                onChange={(e) => setLearningOutcomesText(e.target.value)}
-                placeholder={"Understand basics\nRead notation"}
-                className={`${inputClass} resize-y min-h-[80px]`}
-              />
-            </div>
+          <p className="text-xs text-[var(--app-muted)]">
+            Add items as chips — paste multiple lines or comma-separated values, then Add (or press Enter).
+          </p>
+          <div className="mt-5 grid gap-6 sm:grid-cols-1">
+            <ChipListField
+              id="benefits"
+              label="Benefits"
+              items={benefitsItems}
+              onChange={setBenefitsItems}
+              placeholder="e.g. Lifetime access"
+              mode="lines"
+            />
+            <ChipListField
+              id="prereq"
+              label="Prerequisites"
+              items={prerequisitesItems}
+              onChange={setPrerequisitesItems}
+              placeholder="e.g. Basic music theory"
+              mode="lines"
+            />
+            <ChipListField
+              id="outcomes"
+              label="Learning outcomes"
+              items={learningOutcomesItems}
+              onChange={setLearningOutcomesItems}
+              placeholder="e.g. Understand notation basics"
+              mode="lines"
+            />
           </div>
         </div>
 
         <div className={sectionClass} style={{ borderColor: "var(--app-border)", background: "var(--app-surface)" }}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-[var(--app-text)]">Course content (embedded lessons)</h3>
+              <h3 className="text-base font-semibold text-[var(--app-text)]">Course videos</h3>
               <p className="mt-1 text-xs text-[var(--app-muted)]">
-                Stored on the course document as <code className="text-[11px]">courseContent[]</code>. Order
-                follows the list (set on the server).
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={addContentRow}
-              className="rounded-xl border px-4 py-2 text-sm font-medium text-[var(--app-text)] transition hover:bg-[var(--app-page)]"
-              style={{ borderColor: "var(--app-border)" }}
-            >
-              + Add lesson
-            </button>
-          </div>
-
-          {contentRows.length === 0 ? (
-            <p className="rounded-xl border border-dashed py-8 text-center text-sm text-[var(--app-muted)]" style={{ borderColor: "var(--app-border)" }}>
-              No embedded lessons yet. Add one to match your API payload.
-            </p>
-          ) : (
-            <ul className="space-y-4">
-              {contentRows.map((row, idx) => (
-                <li
-                  key={row.key}
-                  className="rounded-xl border p-4"
-                  style={{ borderColor: "var(--app-border)", background: "var(--app-page)" }}
-                >
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">
-                      Lesson {idx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeContentRow(row.key)}
-                      className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1 sm:col-span-2">
-                      <Label.Root className="text-xs text-[var(--app-muted)]">Title *</Label.Root>
-                      <input
-                        value={row.title}
-                        onChange={(e) => updateContentRow(row.key, { title: e.target.value })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <Label.Root className="text-xs text-[var(--app-muted)]">Description</Label.Root>
-                      <input
-                        value={row.description}
-                        onChange={(e) => updateContentRow(row.key, { description: e.target.value })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label.Root className="text-xs text-[var(--app-muted)]">Video URL</Label.Root>
-                      <input
-                        value={row.videoUrl}
-                        onChange={(e) => updateContentRow(row.key, { videoUrl: e.target.value })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label.Root className="text-xs text-[var(--app-muted)]">Duration</Label.Root>
-                      <input
-                        value={row.duration}
-                        onChange={(e) => updateContentRow(row.key, { duration: e.target.value })}
-                        placeholder="12m"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 sm:col-span-2">
-                      <input
-                        id={`preview-${row.key}`}
-                        type="checkbox"
-                        checked={row.isPreview}
-                        onChange={(e) => updateContentRow(row.key, { isPreview: e.target.checked })}
-                        className="h-4 w-4 rounded border-[var(--app-border)]"
-                      />
-                      <Label.Root htmlFor={`preview-${row.key}`} className="text-sm text-[var(--app-text)]">
-                        Preview lesson
-                      </Label.Root>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className={sectionClass} style={{ borderColor: "var(--app-border)", background: "var(--app-surface)" }}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-[var(--app-text)]">Playlist videos</h3>
-              <p className="mt-1 text-xs text-[var(--app-muted)]">
-                Synced as <code className="text-[11px]">CourseVideo</code> rows. Order follows this list
-                (set on the server).
+                Stored as <code className="text-[11px]">CourseVideo</code> rows. Order follows this list (set on
+                the server).
               </p>
             </div>
             <button
@@ -780,7 +688,7 @@ export default function CourseFormPage() {
 
           {videoRows.length === 0 ? (
             <p className="rounded-xl border border-dashed py-8 text-center text-sm text-[var(--app-muted)]" style={{ borderColor: "var(--app-border)" }}>
-              No playlist rows. Add URLs to match your <code className="text-[11px]">videos[]</code> payload.
+              No course videos yet. Add URLs to match your <code className="text-[11px]">videos[]</code> payload.
             </p>
           ) : (
             <ul className="space-y-4">

@@ -2,10 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
+import { setAuthExpiredHandler } from "../lib/authExpired";
 import { readCollaboratorIdFromAccessToken } from "../lib/jwtPayload";
+import { loginPagePath } from "../routes/paths";
 
 const STORAGE_KEY = "raag-session";
 
@@ -91,6 +94,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(COLLABORATOR_USER_STORAGE_KEY);
     setUser(null);
   }, []);
+
+  useEffect(() => {
+    setAuthExpiredHandler(() => {
+      logout();
+      window.location.assign(loginPagePath());
+    });
+    return () => setAuthExpiredHandler(null);
+  }, [logout]);
 
   const patchUser = useCallback((partial: Partial<AuthUser>) => {
     setUser((prev) => {

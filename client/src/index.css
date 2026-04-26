@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  /* UI copy — full italics + weight 400–900 */
+  /* UI / body — Nunito Sans (variable opsz + weight); Schibsted as secondary */
   --font-sans:
-    "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  /* Display / marketing — use `font-display` or `.font-smooch-sans` */
-  --font-display: "Smooch Sans", ui-sans-serif, sans-serif;
+    "Nunito Sans", "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  /* Display / headings — use `font-display` or `.font-smooch-sans` */
+  --font-display: "Smooch Sans", "Nunito Sans", ui-sans-serif, sans-serif;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -71,11 +72,18 @@ h6 {
 }
 
 /**
- * Smooch Sans stack — set `font-weight` with Tailwind (`font-light` … `font-black`) or CSS.
- * Matches: .smooch-sans-* { font-family: "Smooch Sans"; font-optical-sizing: auto; … }
+ * Smooch Sans — set weight with Tailwind (`font-light` … `font-black`) or CSS.
+ * Mirrors Google Fonts’ .smooch-sans-* snippet (optical sizing + family).
  */
 .font-smooch-sans {
   font-family: "Smooch Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+/** Explicit Nunito Sans when you need UI type outside `font-sans` inheritance */
+.font-nunito-sans {
+  font-family: "Nunito Sans", "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
   font-optical-sizing: auto;
   font-style: normal;
 }

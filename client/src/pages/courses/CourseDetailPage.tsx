@@ -11,14 +11,12 @@ import {
   GraduationCap,
   Hash,
   Layers,
-  LayoutList,
   ListVideo,
   Play,
   PlayCircle,
   Sparkles,
   Star,
   Tag,
-  UserCheck,
   Users,
   X,
 } from "lucide-react";
@@ -33,7 +31,7 @@ import {
 import { fetchMyEnrollments, type EnrollmentRow } from "@/api/enrollmentApi";
 import { buildCourseThumbnailCandidates, buildVideoPosterUrls, getYoutubeEmbedUrl } from "@/lib/youtubeThumbnail";
 
-type DetailTab = "overview" | "curriculum" | "videos" | "enrollments" | "ratings";
+type DetailTab = "overview" | "videos" | "enrollments" | "ratings";
 
 function StarRating({ value, size = "md" }: { value: number; size?: "sm" | "md" | "lg" }) {
   const v = Math.min(5, Math.max(0, value));
@@ -388,7 +386,6 @@ export default function CourseDetailPage() {
 
   const tabs: { id: DetailTab; label: string; count?: number }[] = [
     { id: "overview", label: "Overview" },
-    { id: "curriculum", label: "Curriculum", count: lessons.length },
     { id: "videos", label: "Videos", count: videos.length },
     { id: "enrollments", label: "Enrollments" },
     { id: "ratings", label: "Ratings", count: reviews.length },
@@ -642,38 +639,6 @@ export default function CourseDetailPage() {
           </div>
         )}
 
-        {tab === "curriculum" && (
-          <div id="panel-curriculum" role="tabpanel" aria-labelledby="tab-curriculum">
-            {lessons.length > 0 ? (
-              <>
-                <SectionTitle icon={LayoutList} title="Lesson plan" />
-                <ol className="space-y-3">
-                  {lessons.map((row, i) => (
-                    <li
-                      key={row._id ?? i}
-                      className="flex gap-4 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 transition hover:border-[var(--app-accent)]/30"
-                    >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--app-accent-soft)] text-sm font-semibold text-[var(--app-accent)]">
-                        {i + 1}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-[var(--app-text)]">{row.title}</p>
-                        {row.description?.trim() ? (
-                          <p className="mt-1 text-sm text-[var(--app-muted)]">{row.description.trim()}</p>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </>
-            ) : (
-              <p className="rounded-2xl border border-dashed border-[var(--app-border)] bg-[var(--app-surface-muted)] p-10 text-center text-sm text-[var(--app-muted)]">
-                No lessons in the curriculum yet.
-              </p>
-            )}
-          </div>
-        )}
-
         {tab === "videos" && (
           <div id="panel-videos" role="tabpanel" aria-labelledby="tab-videos">
             {videos.length > 0 ? (
@@ -692,136 +657,121 @@ export default function CourseDetailPage() {
 
         {tab === "enrollments" && (
           <div id="panel-enrollments" role="tabpanel" aria-labelledby="tab-enrollments" className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-[var(--app-border)] bg-gradient-to-br from-[var(--app-surface)] to-[var(--app-accent-soft)] p-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--app-surface)] text-[var(--app-accent)] shadow-sm">
-                    <Users className="h-6 w-6" aria-hidden />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--app-muted)]">Total enrollments</p>
-                    <p className="text-3xl font-bold tabular-nums text-[var(--app-text)]">{enrollments.toLocaleString()}</p>
-                  </div>
+            <div className="rounded-2xl border border-[var(--app-border)] bg-gradient-to-br from-[var(--app-surface)] to-[var(--app-accent-soft)] p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--app-surface)] text-[var(--app-accent)] shadow-sm">
+                  <Users className="h-6 w-6" aria-hidden />
                 </div>
-                <p className="mt-4 text-sm text-[var(--app-muted)]">Everyone actively learning on this course across the platform.</p>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--app-accent-soft)] text-[var(--app-accent)]">
-                    <UserCheck className="h-6 w-6" aria-hidden />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--app-muted)]">Your status</p>
-                    <p className="text-lg font-semibold text-[var(--app-text)]">
-                      {course.isEnrolled ? "Enrolled" : "Not enrolled"}
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-sm font-medium text-[var(--app-muted)]">Total enrollments</p>
+                  <p className="text-3xl font-bold tabular-nums text-[var(--app-text)]">{enrollments.toLocaleString()}</p>
                 </div>
-                <Dialog.Root open={enrollOpen} onOpenChange={setEnrollOpen}>
-                  <Dialog.Trigger asChild>
-                    <button
-                      type="button"
-                      className="mt-4 w-full rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3 text-sm font-semibold text-[var(--app-text)] transition hover:bg-[var(--app-accent-soft)] hover:text-[var(--app-accent)]"
-                    >
-                      {isCollaborator ? "Enrollment info" : "Check enrollment details"}
-                    </button>
-                  </Dialog.Trigger>
-                  <Dialog.Portal>
-                    <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-                    <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
-                      <div className="flex items-start justify-between gap-4">
-                        <Dialog.Title className="text-lg font-semibold text-[var(--app-text)]">Enrollment</Dialog.Title>
-                        <Dialog.Close
-                          className="rounded-lg p-1.5 text-[var(--app-muted)] transition hover:bg-[var(--app-surface-muted)] hover:text-[var(--app-text)]"
-                          aria-label="Close"
-                        >
-                          <X className="h-5 w-5" />
-                        </Dialog.Close>
-                      </div>
-                      <Dialog.Description className="mt-2 text-sm text-[var(--app-muted)]">
-                        {course.title}
-                      </Dialog.Description>
-
-                      <div className="mt-6 space-y-4 text-sm">
-                        {isCollaborator ? (
-                          <p className="leading-relaxed text-[var(--app-muted)]">
-                            Collaborators see aggregate enrollment counts only. This course currently has{" "}
-                            <strong className="text-[var(--app-text)]">{enrollments.toLocaleString()}</strong> enrollments.
-                          </p>
-                        ) : !user ? (
-                          <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-                            <p className="text-[var(--app-text)]">Sign in as a learner to view your enrollment record.</p>
-                            <Link
-                              to={ROUTES.login}
-                              className="mt-3 inline-flex rounded-lg bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-[var(--app-accent-contrast)]"
-                            >
-                              Go to login
-                            </Link>
-                          </div>
-                        ) : enrollLoading ? (
-                          <div className="flex items-center gap-3 py-8 text-[var(--app-muted)]">
-                            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--app-border)] border-t-[var(--app-accent)]" />
-                            Loading your enrollments…
-                          </div>
-                        ) : enrollErr ? (
-                          <p className="text-red-600 dark:text-red-400">{enrollErr}</p>
-                        ) : myEnrollmentRow ? (
-                          <div className="space-y-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-                            <p className="font-semibold text-emerald-800 dark:text-emerald-200">You&apos;re enrolled in this course</p>
-                            <dl className="grid gap-2 text-[var(--app-muted)]">
-                              <div className="flex justify-between gap-4">
-                                <dt>Enrolled</dt>
-                                <dd className="text-right font-medium text-[var(--app-text)]">{formatShortDate(myEnrollmentRow.enrolledAt)}</dd>
-                              </div>
-                              {myEnrollmentRow.enrollmentType ? (
-                                <div className="flex justify-between gap-4">
-                                  <dt>Type</dt>
-                                  <dd className="text-right font-medium capitalize text-[var(--app-text)]">{myEnrollmentRow.enrollmentType}</dd>
-                                </div>
-                              ) : null}
-                              {myEnrollmentRow.expiresAt ? (
-                                <div className="flex justify-between gap-4">
-                                  <dt>Access until</dt>
-                                  <dd className="text-right font-medium text-[var(--app-text)]">{formatShortDate(myEnrollmentRow.expiresAt)}</dd>
-                                </div>
-                              ) : null}
-                              {myEnrollmentRow.progress?.completionPercentage != null ? (
-                                <div className="flex justify-between gap-4">
-                                  <dt>Progress</dt>
-                                  <dd className="text-right font-medium text-[var(--app-text)]">
-                                    {Math.round(myEnrollmentRow.progress.completionPercentage)}%
-                                  </dd>
-                                </div>
-                              ) : null}
-                              {myEnrollmentRow.progress?.lastAccessedAt ? (
-                                <div className="flex justify-between gap-4">
-                                  <dt>Last activity</dt>
-                                  <dd className="text-right font-medium text-[var(--app-text)]">
-                                    {formatShortDate(myEnrollmentRow.progress.lastAccessedAt)}
-                                  </dd>
-                                </div>
-                              ) : null}
-                            </dl>
-                            <Link
-                              to={ROUTES.dashboard.rating}
-                              className="inline-flex text-sm font-semibold text-[var(--app-accent)] hover:underline"
-                            >
-                              Manage ratings →
-                            </Link>
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-                            <p className="text-[var(--app-text)]">You don&apos;t have an active enrollment for this course yet.</p>
-                            <p className="mt-2 text-[var(--app-muted)]">Enroll through your usual flow; this dashboard will update when you&apos;re registered.</p>
-                          </div>
-                        )}
-                      </div>
-                    </Dialog.Content>
-                  </Dialog.Portal>
-                </Dialog.Root>
               </div>
+              <p className="mt-4 text-sm text-[var(--app-muted)]">Everyone actively learning on this course across the platform.</p>
             </div>
+
+            <Dialog.Root open={enrollOpen} onOpenChange={setEnrollOpen}>
+              <Dialog.Trigger asChild>
+                <button
+                  type="button"
+                  className="w-full max-w-md rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm font-semibold text-[var(--app-text)] transition hover:bg-[var(--app-accent-soft)] hover:text-[var(--app-accent)]"
+                >
+                  {isCollaborator ? "Enrollment info" : "Check enrollment details"}
+                </button>
+              </Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+                <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+                  <div className="flex items-start justify-between gap-4">
+                    <Dialog.Title className="text-lg font-semibold text-[var(--app-text)]">Enrollment</Dialog.Title>
+                    <Dialog.Close
+                      className="rounded-lg p-1.5 text-[var(--app-muted)] transition hover:bg-[var(--app-surface-muted)] hover:text-[var(--app-text)]"
+                      aria-label="Close"
+                    >
+                      <X className="h-5 w-5" />
+                    </Dialog.Close>
+                  </div>
+                  <Dialog.Description className="mt-2 text-sm text-[var(--app-muted)]">
+                    {course.title}
+                  </Dialog.Description>
+
+                  <div className="mt-6 space-y-4 text-sm">
+                    {isCollaborator ? (
+                      <p className="leading-relaxed text-[var(--app-muted)]">
+                        Collaborators see aggregate enrollment counts only. This course currently has{" "}
+                        <strong className="text-[var(--app-text)]">{enrollments.toLocaleString()}</strong> enrollments.
+                      </p>
+                    ) : !user ? (
+                      <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+                        <p className="text-[var(--app-text)]">Sign in as a learner to view your enrollment record.</p>
+                        <Link
+                          to={ROUTES.login}
+                          className="mt-3 inline-flex rounded-lg bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-[var(--app-accent-contrast)]"
+                        >
+                          Go to login
+                        </Link>
+                      </div>
+                    ) : enrollLoading ? (
+                      <div className="flex items-center gap-3 py-8 text-[var(--app-muted)]">
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--app-border)] border-t-[var(--app-accent)]" />
+                        Loading your enrollments…
+                      </div>
+                    ) : enrollErr ? (
+                      <p className="text-red-600 dark:text-red-400">{enrollErr}</p>
+                    ) : myEnrollmentRow ? (
+                      <div className="space-y-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                        <p className="font-semibold text-emerald-800 dark:text-emerald-200">You&apos;re enrolled in this course</p>
+                        <dl className="grid gap-2 text-[var(--app-muted)]">
+                          <div className="flex justify-between gap-4">
+                            <dt>Enrolled</dt>
+                            <dd className="text-right font-medium text-[var(--app-text)]">{formatShortDate(myEnrollmentRow.enrolledAt)}</dd>
+                          </div>
+                          {myEnrollmentRow.enrollmentType ? (
+                            <div className="flex justify-between gap-4">
+                              <dt>Type</dt>
+                              <dd className="text-right font-medium capitalize text-[var(--app-text)]">{myEnrollmentRow.enrollmentType}</dd>
+                            </div>
+                          ) : null}
+                          {myEnrollmentRow.expiresAt ? (
+                            <div className="flex justify-between gap-4">
+                              <dt>Access until</dt>
+                              <dd className="text-right font-medium text-[var(--app-text)]">{formatShortDate(myEnrollmentRow.expiresAt)}</dd>
+                            </div>
+                          ) : null}
+                          {myEnrollmentRow.progress?.completionPercentage != null ? (
+                            <div className="flex justify-between gap-4">
+                              <dt>Progress</dt>
+                              <dd className="text-right font-medium text-[var(--app-text)]">
+                                {Math.round(myEnrollmentRow.progress.completionPercentage)}%
+                              </dd>
+                            </div>
+                          ) : null}
+                          {myEnrollmentRow.progress?.lastAccessedAt ? (
+                            <div className="flex justify-between gap-4">
+                              <dt>Last activity</dt>
+                              <dd className="text-right font-medium text-[var(--app-text)]">
+                                {formatShortDate(myEnrollmentRow.progress.lastAccessedAt)}
+                              </dd>
+                            </div>
+                          ) : null}
+                        </dl>
+                        <Link
+                          to={ROUTES.dashboard.rating}
+                          className="inline-flex text-sm font-semibold text-[var(--app-accent)] hover:underline"
+                        >
+                          Manage ratings →
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+                        <p className="text-[var(--app-text)]">You don&apos;t have an active enrollment for this course yet.</p>
+                        <p className="mt-2 text-[var(--app-muted)]">Enroll through your usual flow; this dashboard will update when you&apos;re registered.</p>
+                      </div>
+                    )}
+                  </div>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog.Root>
           </div>
         )}
 

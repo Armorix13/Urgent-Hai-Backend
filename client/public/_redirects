@@ -1,0 +1,2 @@
+# SPA: serve index.html for all paths so React Router works (refresh, deep links).
+/*    /index.html   200
