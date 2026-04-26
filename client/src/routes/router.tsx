@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import CourseSectionLayout from "../layouts/CourseSectionLayout";
 import DashboardLayout from "../layouts/DashboardLayout";
+import RootLayout from "../layouts/RootLayout";
 import DashboardHomePage from "../pages/DashboardHomePage";
 import CourseDetailPage from "../pages/courses/CourseDetailPage";
 import CourseFormPage from "../pages/courses/CourseFormPage";
@@ -21,39 +22,44 @@ import { ROUTES } from "./paths";
 export function createAppRouter() {
   return createBrowserRouter(
     [
-      { path: ROUTES.root, element: <RootRedirect /> },
-      { path: ROUTES.login, element: <LoginPage /> },
       {
-        path: ROUTES.dashboard.home,
-        element: (
-          <RequireAuth>
-            <DashboardLayout />
-          </RequireAuth>
-        ),
+        element: <RootLayout />,
         children: [
-          { index: true, element: <DashboardHomePage /> },
+          { path: ROUTES.root, element: <RootRedirect /> },
+          { path: ROUTES.login, element: <LoginPage /> },
           {
-            path: "course",
-            element: <CourseSectionLayout />,
+            path: ROUTES.dashboard.home,
+            element: (
+              <RequireAuth>
+                <DashboardLayout />
+              </RequireAuth>
+            ),
             children: [
-              { index: true, element: <CourseListPage /> },
-              { path: "new", element: <CourseFormPage /> },
-              { path: ":courseId/edit", element: <CourseFormPage /> },
-              { path: ":courseId", element: <CourseDetailPage /> },
+              { index: true, element: <DashboardHomePage /> },
+              {
+                path: "course",
+                element: <CourseSectionLayout />,
+                children: [
+                  { index: true, element: <CourseListPage /> },
+                  { path: "new", element: <CourseFormPage /> },
+                  { path: ":courseId/edit", element: <CourseFormPage /> },
+                  { path: ":courseId", element: <CourseDetailPage /> },
+                ],
+              },
+              { path: "rating", element: <RatingPage /> },
+              { path: "suggestion", element: <SuggestionPage /> },
+              { path: "settings", element: <SettingsPage /> },
+              ...dashboardStubRoutes.map((r) => ({
+                path: r.path,
+                element: (
+                  <DashboardStubPage title={r.title} description={r.description} />
+                ),
+              })),
             ],
           },
-          { path: "rating", element: <RatingPage /> },
-          { path: "suggestion", element: <SuggestionPage /> },
-          { path: "settings", element: <SettingsPage /> },
-          ...dashboardStubRoutes.map((r) => ({
-            path: r.path,
-            element: (
-              <DashboardStubPage title={r.title} description={r.description} />
-            ),
-          })),
+          { path: "*", element: <Navigate to={ROUTES.root} replace /> },
         ],
       },
-      { path: "*", element: <Navigate to={ROUTES.root} replace /> },
     ],
     { basename: import.meta.env.BASE_URL },
   );
