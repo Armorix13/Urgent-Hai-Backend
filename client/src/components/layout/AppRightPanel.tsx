@@ -1,5 +1,5 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { BookOpen, ChevronRight, LayoutGrid, MoreHorizontal, Sparkles } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useId } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -180,80 +180,6 @@ export default function AppRightPanel() {
             {greetingForHour(new Date().getHours())}, {firstName}
           </p>
           <p className="mt-2 max-w-[15.5rem] text-center text-xs leading-relaxed text-[var(--app-muted)]">{tagline}</p>
-        </div>
-
-        <div className="px-5 pb-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--app-muted)]">Shortcuts</p>
-          <nav className="mt-3 flex flex-col gap-2" aria-label="Quick navigation">
-            <Link
-              to={ROUTES.dashboard.home}
-              className="group flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition hover:border-[color-mix(in_srgb,var(--app-primary)_28%,var(--app-border))] hover:bg-[color-mix(in_srgb,var(--app-primary-soft)_65%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-primary)]"
-              style={{
-                borderColor: "var(--app-border)",
-                background: "color-mix(in srgb, var(--app-surface) 55%, var(--app-page))",
-                boxShadow: "0 1px 0 color-mix(in srgb, var(--app-border) 45%, transparent)",
-              }}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--app-primary-soft)] text-[var(--app-primary)] ring-1 ring-[color-mix(in_srgb,var(--app-primary)_18%,transparent)]">
-                <LayoutGrid className="h-[1.15rem] w-[1.15rem]" strokeWidth={2} aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-[var(--app-text)]">Dashboard</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-[var(--app-muted)]">Overview &amp; analytics</span>
-              </span>
-              <ChevronRight
-                className="h-4 w-4 shrink-0 text-[var(--app-muted)] opacity-60 transition group-hover:translate-x-0.5 group-hover:opacity-100"
-                strokeWidth={2}
-                aria-hidden
-              />
-            </Link>
-            <Link
-              to={ROUTES.dashboard.course}
-              className="group flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition hover:border-[color-mix(in_srgb,var(--app-primary)_28%,var(--app-border))] hover:bg-[color-mix(in_srgb,var(--app-primary-soft)_65%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-primary)]"
-              style={{
-                borderColor: "var(--app-border)",
-                background: "color-mix(in srgb, var(--app-surface) 55%, var(--app-page))",
-                boxShadow: "0 1px 0 color-mix(in srgb, var(--app-border) 45%, transparent)",
-              }}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--app-primary-soft)] text-[var(--app-primary)] ring-1 ring-[color-mix(in_srgb,var(--app-primary)_18%,transparent)]">
-                <BookOpen className="h-[1.15rem] w-[1.15rem]" strokeWidth={2} aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-[var(--app-text)]">Courses</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-[var(--app-muted)]">
-                  {isCollaborator ? "Your catalog &amp; edits" : "Browse the library"}
-                </span>
-              </span>
-              <ChevronRight
-                className="h-4 w-4 shrink-0 text-[var(--app-muted)] opacity-60 transition group-hover:translate-x-0.5 group-hover:opacity-100"
-                strokeWidth={2}
-                aria-hidden
-              />
-            </Link>
-            <Link
-              to={ROUTES.dashboard.settings}
-              className="group flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition hover:border-[color-mix(in_srgb,var(--app-primary)_28%,var(--app-border))] hover:bg-[color-mix(in_srgb,var(--app-primary-soft)_65%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-primary)]"
-              style={{
-                borderColor: "var(--app-border)",
-                background: "color-mix(in srgb, var(--app-surface) 55%, var(--app-page))",
-                boxShadow: "0 1px 0 color-mix(in srgb, var(--app-border) 45%, transparent)",
-              }}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--app-primary-soft)] text-[var(--app-primary)] ring-1 ring-[color-mix(in_srgb,var(--app-primary)_18%,transparent)]">
-                <Sparkles className="h-[1.15rem] w-[1.15rem]" strokeWidth={2} aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-[var(--app-text)]">Settings</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-[var(--app-muted)]">Account &amp; preferences</span>
-              </span>
-              <ChevronRight
-                className="h-4 w-4 shrink-0 text-[var(--app-muted)] opacity-60 transition group-hover:translate-x-0.5 group-hover:opacity-100"
-                strokeWidth={2}
-                aria-hidden
-              />
-            </Link>
-          </nav>
         </div>
 
         <div className="mx-5 mb-5 rounded-2xl border p-4 shadow-sm" style={{ borderColor: "var(--app-border)", background: "var(--app-surface)" }}>

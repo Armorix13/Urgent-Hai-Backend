@@ -720,9 +720,6 @@ export default function CourseFormPage() {
           <h2 className="text-2xl font-bold tracking-tight text-[var(--app-text)]">
             {isEdit ? "Edit course" : "Add course"}
           </h2>
-          <p className="mt-1 text-sm text-[var(--app-muted)]">
-            Matches <code className="rounded bg-[var(--app-page)] px-1.5 py-0.5 text-xs">POST /api/v1/course</code> — course videos and metadata.
-          </p>
         </div>
         <Link
           to={ROUTES.dashboard.course}
@@ -1032,9 +1029,7 @@ export default function CourseFormPage() {
                 ) : null}
               </h3>
               <p className="mt-1 text-xs text-[var(--app-muted)]">
-                Drag the handle to reorder. YouTube links show a thumbnail and preview. Saved order is sent as{" "}
-                <code className="text-[11px]">order</code> on each <code className="text-[11px]">CourseVideo</code>{" "}
-                row.
+                Drag the handle to reorder. YouTube links show a thumbnail and preview.
               </p>
             </div>
             <button
