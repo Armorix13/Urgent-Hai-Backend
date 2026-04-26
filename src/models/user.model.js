@@ -70,6 +70,11 @@ const userSchema = new Schema(
     providerId: {
       type: String,
     },
+    /** True after the user has signed in via social at least once (Google / Apple). */
+    hasUsedSocialLogin: {
+      type: Boolean,
+      default: false,
+    },
     jti: {
       type: String,
     },

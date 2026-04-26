@@ -190,6 +190,25 @@ const updateUserSchema = {
   }),
 };
 
+/** First-time password for accounts without one (e.g. social signup). Authenticated. */
+const setPasswordSchema = {
+  body: Joi.object()
+    .keys({
+      newPassword: Joi.string()
+        .trim()
+        .min(8)
+        .max(128)
+        .required()
+        .messages({
+          "string.min": "New password must be at least 8 characters long.",
+          "string.max": "New password is too long.",
+          "any.required": "New password is required.",
+          "string.empty": "New password cannot be empty.",
+        }),
+    })
+    .options({ stripUnknown: true }),
+};
+
 const changePasswordSchema = {
   body: Joi.object()
     .keys({
@@ -312,6 +331,7 @@ const userValidationSchemas = {
   forgetPasswordSchema,
   verifyOtpSchema,
   updateUserSchema,
+  setPasswordSchema,
   changePasswordSchema,
   resetPasswordSchema,
   getAllUsersSchema,

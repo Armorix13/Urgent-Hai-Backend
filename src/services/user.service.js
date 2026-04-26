@@ -32,6 +32,23 @@ const normalizeGender = (value) => {
   return undefined;
 };
 
+/**
+ * For API responses (password never sent). `userHasBeenSocialLogin` is true if they ever used social auth
+ * or have `hasUsedSocialLogin` / `provider` set.
+ * @param {import("mongoose").Document | Record<string, unknown>|null|undefined} user
+ */
+const getUserAuthProfileFlags = (user) => {
+  if (!user) {
+    return { hasPassword: false, userHasBeenSocialLogin: false };
+  }
+  const pwd = user.password;
+  const hasPassword = pwd != null && String(pwd).length > 0;
+  const userHasBeenSocialLogin = Boolean(
+    user.hasUsedSocialLogin === true || user.provider
+  );
+  return { hasPassword, userHasBeenSocialLogin };
+};
+
 export const getUserById = async (id) => {
   return await User.findById(id);
 };
@@ -190,6 +207,7 @@ const socialLogin = async (req) => {
       if (deviceToken) user.deviceToken = String(deviceToken);
       user.isVerified = true;
       user.socialId = providerId;
+      user.hasUsedSocialLogin = true;
       await user.save();
     } else {
       const displayName =
@@ -206,6 +224,7 @@ const socialLogin = async (req) => {
         ...(normalizedDeviceType != null ? { deviceType: normalizedDeviceType } : {}),
         ...(deviceToken ? { deviceToken: String(deviceToken) } : {}),
         isVerified: true,
+        hasUsedSocialLogin: true,
       });
     }
 
@@ -231,7 +250,13 @@ const socialLogin = async (req) => {
       jti: ______,
       ...userWithoutSensitiveData
     } = userObject;
-    return { ...userWithoutSensitiveData, access_token, refresh_token };
+    const authFlags = getUserAuthProfileFlags(user);
+    return {
+      ...userWithoutSensitiveData,
+      ...authFlags,
+      access_token,
+      refresh_token,
+    };
   } catch (error) {
     throw error;
   }
@@ -291,7 +316,13 @@ const loginUser = async (req) => {
       jti: ______,
       ...userWithoutSensitiveData
     } = userObject;
-    return { ...userWithoutSensitiveData, access_token, refresh_token };
+    const authFlags = getUserAuthProfileFlags(userObject);
+    return {
+      ...userWithoutSensitiveData,
+      ...authFlags,
+      access_token,
+      refresh_token,
+    };
   } catch (error) {
     throw error;
   }
@@ -393,17 +424,21 @@ const verifyOtp = async (req) => {
 
       const access_token = helper.generateToken(payload, "access");
       const refresh_token = helper.generateToken(payload, "refresh");
+      const authFlags = getUserAuthProfileFlags(userObject);
 
       return {
         ...userWithoutSensitiveData,
+        ...authFlags,
         access_token,
         refresh_token,
       };
     }
 
     // ❌ Else → return only user data
+    const authFlagsNoToken = getUserAuthProfileFlags(userObject);
     return {
       ...userWithoutSensitiveData,
+      ...authFlagsNoToken,
       message: "OTP verified successfully. No token issued for this type.",
     };
   } catch (error) {
@@ -511,7 +546,8 @@ const updateUser = async (req) => {
       jti: ______,
       ...userWithoutSensitiveData
     } = user.toObject();
-    return userWithoutSensitiveData;
+    const authFlags = getUserAuthProfileFlags(user);
+    return { ...userWithoutSensitiveData, ...authFlags };
   } catch (error) {
     throw error;
   }
@@ -564,13 +600,42 @@ const getUserDetails = async (req) => {
           ? Math.max(0, Number(rawWallet))
           : 0;
 
+    const authFlags = getUserAuthProfileFlags(user);
+
     return {
       ...userWithoutSensitiveData,
       wallet,
       subscription,
       currentPlan,
       isPremium: !!activeSubscription,
+      ...authFlags,
     };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const setInitialPassword = async (req) => {
+  try {
+    const userId = req.userId;
+    const { newPassword } = req.body;
+    const user = await getUserById(userId);
+
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    if (user.password) {
+      throw new Error(
+        "A password is already set. Use change password to update it."
+      );
+    }
+
+    const hashedPassword = await helper.hashPassword(newPassword);
+    await User.findByIdAndUpdate(user._id, {
+      $set: { password: hashedPassword },
+    });
+    return;
   } catch (error) {
     throw error;
   }
@@ -588,7 +653,7 @@ const changePassword = async (req) => {
 
     if (!user.password) {
       throw new Error(
-        "Cannot change password. This account uses social login."
+        "No password on file. Use POST /user/set-password while signed in to create one."
       );
     }
 
@@ -802,6 +867,7 @@ export const userService = {
   forgetPassword,
   verifyOtp,
   setPassowrd,
+  setInitialPassword,
   updateUser,
   getUserDetails,
   changePassword,

@@ -1,8 +1,29 @@
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import * as Dialog from "@radix-ui/react-dialog";
 import * as Label from "@radix-ui/react-label";
 import * as Select from "@radix-ui/react-select";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { GripHorizontal, Play, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { buildVideoPosterUrls, extractYoutubeVideoId, getYoutubeEmbedUrl } from "@/lib/youtubeThumbnail";
 import {
   createCourse,
   fetchCourseById,
@@ -51,6 +72,288 @@ function emptyVideoRow(): VideoRow {
     description: "",
     isActive: true,
   };
+}
+
+function CourseFormVideoRowCard({
+  row,
+  index,
+  inputClass: ic,
+  dragHandle,
+  onChangeUrl,
+  onChangeTitle,
+  onChangeDescription,
+  onChangeActive,
+  onRemove,
+}: {
+  row: VideoRow;
+  index: number;
+  inputClass: string;
+  dragHandle?: {
+    attributes: DraggableAttributes;
+    listeners: DraggableSyntheticListeners;
+  };
+  onChangeUrl: (v: string) => void;
+  onChangeTitle: (v: string) => void;
+  onChangeDescription: (v: string) => void;
+  onChangeActive: (v: boolean) => void;
+  onRemove: () => void;
+}) {
+  const [thumbIdx, setThumbIdx] = useState(0);
+  const [urlEditorOpen, setUrlEditorOpen] = useState(() => {
+    const t = row.videoUrl.trim();
+    if (!t) return true;
+    return extractYoutubeVideoId(row.videoUrl) == null;
+  });
+  const [playOpen, setPlayOpen] = useState(false);
+
+  const trimmedUrl = row.videoUrl.trim();
+  const posters = useMemo(() => buildVideoPosterUrls(row.videoUrl), [row.videoUrl]);
+  const embed = useMemo(() => getYoutubeEmbedUrl(row.videoUrl), [row.videoUrl]);
+  const ytId = useMemo(() => extractYoutubeVideoId(row.videoUrl), [row.videoUrl]);
+
+  useEffect(() => {
+    setThumbIdx(0);
+  }, [trimmedUrl]);
+
+  useEffect(() => {
+    if (!trimmedUrl) {
+      setUrlEditorOpen(true);
+      return;
+    }
+    if (!ytId) setUrlEditorOpen(true);
+  }, [trimmedUrl, ytId]);
+
+  function onUrlBlur() {
+    if (ytId && trimmedUrl) setUrlEditorOpen(false);
+  }
+
+  const showYoutubePreview = posters.length > 0 && Boolean(trimmedUrl);
+  const hasNonYoutubeUrl = Boolean(trimmedUrl) && !ytId;
+  const thumbSrc = posters[thumbIdx];
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{ borderColor: "var(--app-border)", background: "var(--app-page)" }}
+    >
+      <div className="flex gap-3 sm:gap-4">
+        {dragHandle ? (
+          <button
+            type="button"
+            className="flex min-h-[3.5rem] w-10 shrink-0 touch-none cursor-grab flex-col items-center justify-center gap-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-muted)] select-none hover:bg-[var(--app-surface)] active:cursor-grabbing"
+            aria-label={`Drag to reorder video ${index + 1}`}
+            {...dragHandle.attributes}
+            {...dragHandle.listeners}
+          >
+            <GripHorizontal className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+            <span className="text-[11px] font-bold tabular-nums text-[var(--app-text)]">{index + 1}</span>
+          </button>
+        ) : null}
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex justify-end">
+            <button
+              type="button"
+              onClick={onRemove}
+              className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+            >
+              Remove
+            </button>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr] lg:items-start">
+        <div className="space-y-3">
+          {showYoutubePreview ? (
+            <button
+              type="button"
+              onClick={() => embed && setPlayOpen(true)}
+              className="group relative w-full overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] text-left shadow-sm ring-1 ring-[var(--app-border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-primary)]"
+            >
+              <div className="relative aspect-video w-full overflow-hidden bg-black/40">
+                {thumbSrc ? (
+                  <img
+                    src={thumbSrc}
+                    alt=""
+                    className="h-full w-full object-cover transition duration-300 ease-out group-hover:scale-[1.02]"
+                    loading="lazy"
+                    onError={() => setThumbIdx((i) => i + 1)}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-[var(--app-muted)]">
+                    Thumbnail unavailable
+                  </div>
+                )}
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                  aria-hidden
+                >
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_4px_24px_rgba(0,0,0,0.35)] ring-2 ring-black/10 dark:ring-white/20">
+                    <Play className="ml-0.5 h-7 w-7 text-zinc-900" fill="currentColor" strokeWidth={0} />
+                  </span>
+                </div>
+                <div
+                  className="pointer-events-none absolute inset-0 bg-black/0 transition duration-300 group-hover:bg-black/20"
+                  aria-hidden
+                />
+              </div>
+              <p className="px-2 py-2 text-center text-xs text-[var(--app-muted)]">Tap to play preview</p>
+            </button>
+          ) : hasNonYoutubeUrl ? (
+            <div className="flex aspect-video w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 text-center text-xs text-[var(--app-muted)]">
+              <p className="font-medium text-[var(--app-text)]">No thumbnail for this URL</p>
+              <p>Use a YouTube link to see a preview, or change the link below.</p>
+            </div>
+          ) : (
+            <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 text-center text-xs text-[var(--app-muted)]">
+              Add a YouTube URL below — a thumbnail and player preview will appear here.
+            </div>
+          )}
+
+          {urlEditorOpen ? (
+            <div className="space-y-1">
+              <Label.Root className="text-xs text-[var(--app-muted)]">Video URL *</Label.Root>
+              <input
+                value={row.videoUrl}
+                onChange={(e) => onChangeUrl(e.target.value)}
+                onBlur={onUrlBlur}
+                placeholder="https://www.youtube.com/watch?v=… or https://youtu.be/…"
+                className={ic}
+              />
+              {showYoutubePreview ? (
+                <button
+                  type="button"
+                  onClick={() => setUrlEditorOpen(false)}
+                  className="text-xs font-semibold hover:underline"
+                  style={{ color: "var(--app-primary)" }}
+                >
+                  Hide URL — preview only
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setUrlEditorOpen(true)}
+              className="text-xs font-semibold hover:underline"
+              style={{ color: "var(--app-primary)" }}
+            >
+              Change video link
+            </button>
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1 sm:col-span-2">
+            <Label.Root className="text-xs text-[var(--app-muted)]">Title</Label.Root>
+            <input
+              value={row.title}
+              onChange={(e) => onChangeTitle(e.target.value)}
+              className={ic}
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label.Root className="text-xs text-[var(--app-muted)]">Description</Label.Root>
+            <textarea
+              value={row.description}
+              onChange={(e) => onChangeDescription(e.target.value)}
+              rows={3}
+              className={`${ic} resize-y min-h-[72px]`}
+            />
+          </div>
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <input
+              id={`active-${row.key}`}
+              type="checkbox"
+              checked={row.isActive}
+              onChange={(e) => onChangeActive(e.target.checked)}
+              className="h-4 w-4 rounded border-[var(--app-border)]"
+            />
+            <Label.Root htmlFor={`active-${row.key}`} className="text-sm text-[var(--app-text)]">
+              Active
+            </Label.Root>
+          </div>
+        </div>
+          </div>
+        </div>
+      </div>
+
+      <Dialog.Root open={playOpen} onOpenChange={setPlayOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[300] max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-white/10 bg-black p-4 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 md:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <Dialog.Title className="truncate pr-8 text-lg font-semibold text-white">
+                {row.title?.trim() || "Video preview"}
+              </Dialog.Title>
+              <Dialog.Close
+                className="rounded-lg p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                aria-label="Close preview"
+              >
+                <X className="h-5 w-5" />
+              </Dialog.Close>
+            </div>
+            <div className="mt-4 overflow-hidden rounded-xl bg-black">
+              {embed ? (
+                <div className="aspect-video w-full">
+                  <iframe
+                    title={row.title?.trim() || "YouTube preview"}
+                    src={embed}
+                    className="h-full w-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              ) : null}
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
+  );
+}
+
+function SortableCourseVideoRow({
+  row,
+  index,
+  inputClass,
+  updateVideoRow,
+  removeVideoRow,
+}: {
+  row: VideoRow;
+  index: number;
+  inputClass: string;
+  updateVideoRow: (key: string, patch: Partial<VideoRow>) => void;
+  removeVideoRow: (key: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: row.key,
+  });
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.9 : 1,
+    zIndex: isDragging ? 2 : undefined,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={sortableStyle}
+      className={`list-none ${isDragging ? "rounded-xl shadow-lg ring-2 ring-[var(--app-primary)]/35" : ""}`}
+    >
+      <CourseFormVideoRowCard
+        row={row}
+        index={index}
+        inputClass={inputClass}
+        dragHandle={{ attributes, listeners }}
+        onChangeUrl={(v) => updateVideoRow(row.key, { videoUrl: v })}
+        onChangeTitle={(v) => updateVideoRow(row.key, { title: v })}
+        onChangeDescription={(v) => updateVideoRow(row.key, { description: v })}
+        onChangeActive={(v) => updateVideoRow(row.key, { isActive: v })}
+        onRemove={() => removeVideoRow(row.key)}
+      />
+    </li>
+  );
 }
 
 type ChipListMode = "tags" | "lines";
@@ -198,6 +501,26 @@ export default function CourseFormPage() {
 
   const collaboratorLocked = Boolean(sessionCollaboratorId);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const onVideosDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setVideoRows((items) => {
+      const oldIndex = items.findIndex((r) => r.key === active.id);
+      const newIndex = items.findIndex((r) => r.key === over.id);
+      if (oldIndex < 0 || newIndex < 0) return items;
+      return arrayMove(items, oldIndex, newIndex);
+    });
+  }, []);
+
   useEffect(() => {
     if (!sessionCollaboratorId) return;
     setCollaboratorId(sessionCollaboratorId);
@@ -308,12 +631,14 @@ export default function CourseFormPage() {
     setError(null);
 
     const videosPayload = videoRows
-      .filter((row) => row.videoUrl.trim())
-      .map((row) => ({
+      .map((row, order) => ({ row, order }))
+      .filter(({ row }) => row.videoUrl.trim())
+      .map(({ row, order }) => ({
         videoUrl: row.videoUrl.trim(),
         title: row.title.trim() || undefined,
         description: row.description.trim() || undefined,
         isActive: row.isActive !== false,
+        order,
       }));
 
     const body: AddCourseBody = {
@@ -334,7 +659,9 @@ export default function CourseFormPage() {
     };
 
     if (courseType === 1) {
-      body.price = Math.max(0, Number(price) || 0);
+      body.price = Math.max(0, Number.parseFloat(price) || 0);
+    } else {
+      body.price = 0;
     }
 
     try {
@@ -489,7 +816,11 @@ export default function CourseFormPage() {
               <Label.Root className="text-sm font-medium text-[var(--app-text)]">Course type</Label.Root>
               <Select.Root
                 value={String(courseType)}
-                onValueChange={(v) => setCourseType(Number(v) as CourseTypeNum)}
+                onValueChange={(v) => {
+                  const t = Number(v) as CourseTypeNum;
+                  setCourseType(t);
+                  if (t === 2) setPrice("0");
+                }}
               >
                 <Select.Trigger
                   className={`flex h-12 w-full items-center justify-between rounded-xl border bg-[var(--app-page)] px-4 text-sm text-[var(--app-text)] outline-none ring-1 ring-[var(--app-border)] focus:ring-2 focus:ring-[var(--app-primary)]`}
@@ -510,13 +841,13 @@ export default function CourseFormPage() {
                         value="1"
                         className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none data-[highlighted]:bg-[var(--app-page)]"
                       >
-                        <Select.ItemText>Paid (1)</Select.ItemText>
+                        <Select.ItemText>Paid</Select.ItemText>
                       </Select.Item>
                       <Select.Item
                         value="2"
                         className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none data-[highlighted]:bg-[var(--app-page)]"
                       >
-                        <Select.ItemText>Free (2)</Select.ItemText>
+                        <Select.ItemText>Free</Select.ItemText>
                       </Select.Item>
                     </Select.Viewport>
                   </Select.Content>
@@ -524,23 +855,47 @@ export default function CourseFormPage() {
               </Select.Root>
             </div>
 
-            {courseType === 1 && (
-              <div className="space-y-2">
-                <Label.Root htmlFor="price" className="text-sm font-medium text-[var(--app-text)]">
-                  Price <span className="text-red-500">*</span>
-                </Label.Root>
-                <input
-                  id="price"
-                  type="number"
-                  min={0}
-                  step={1}
-                  required={courseType === 1}
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label.Root htmlFor={courseType === 1 ? "price" : "course-price-free"} className="text-sm font-medium text-[var(--app-text)]">
+                {courseType === 1 ? (
+                  <>
+                    Price <span className="text-red-500">*</span>
+                  </>
+                ) : (
+                  "Price"
+                )}
+              </Label.Root>
+              {courseType === 2 ? (
+                <div
+                  id="course-price-free"
+                  className="rounded-xl border px-4 py-3 text-sm"
+                  style={{ borderColor: "var(--app-border)", background: "var(--app-surface-muted)" }}
+                >
+                  <p className="font-semibold text-[var(--app-text)]">Free — no payment required</p>
+                  <p className="mt-1 text-[var(--app-muted)]">
+                    Learners are not charged. This course is saved with price <span className="tabular-nums font-medium text-[var(--app-text)]">$0.00</span>.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <input
+                    id="price"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    required
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0.00"
+                    className={inputClass}
+                  />
+                  <p className="text-xs text-[var(--app-muted)]">
+                    Amount learners pay (0 is allowed). Use the same currency you display elsewhere.
+                  </p>
+                </>
+              )}
+            </div>
 
             <div className="space-y-2 sm:col-span-2">
               <Label.Root htmlFor="category" className="text-sm font-medium text-[var(--app-text)]">
@@ -670,10 +1025,16 @@ export default function CourseFormPage() {
         <div className={sectionClass} style={{ borderColor: "var(--app-border)", background: "var(--app-surface)" }}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-[var(--app-text)]">Course videos</h3>
+              <h3 className="text-base font-semibold text-[var(--app-text)]">
+                Course videos
+                {videoRows.length > 0 ? (
+                  <span className="ml-1.5 font-normal text-[var(--app-muted)]">({videoRows.length})</span>
+                ) : null}
+              </h3>
               <p className="mt-1 text-xs text-[var(--app-muted)]">
-                Stored as <code className="text-[11px]">CourseVideo</code> rows. Order follows this list (set on
-                the server).
+                Drag the handle to reorder. YouTube links show a thumbnail and preview. Saved order is sent as{" "}
+                <code className="text-[11px]">order</code> on each <code className="text-[11px]">CourseVideo</code>{" "}
+                row.
               </p>
             </div>
             <button
@@ -688,69 +1049,29 @@ export default function CourseFormPage() {
 
           {videoRows.length === 0 ? (
             <p className="rounded-xl border border-dashed py-8 text-center text-sm text-[var(--app-muted)]" style={{ borderColor: "var(--app-border)" }}>
-              No course videos yet. Add URLs to match your <code className="text-[11px]">videos[]</code> payload.
+              No course videos yet. Add YouTube links for previews, or other URLs for playback links only.
             </p>
           ) : (
-            <ul className="space-y-4">
-              {videoRows.map((row, idx) => (
-                <li
-                  key={row.key}
-                  className="rounded-xl border p-4"
-                  style={{ borderColor: "var(--app-border)", background: "var(--app-page)" }}
-                >
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">
-                      Video {idx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeVideoRow(row.key)}
-                      className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1 sm:col-span-2">
-                      <Label.Root className="text-xs text-[var(--app-muted)]">Video URL *</Label.Root>
-                      <input
-                        value={row.videoUrl}
-                        onChange={(e) => updateVideoRow(row.key, { videoUrl: e.target.value })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <Label.Root className="text-xs text-[var(--app-muted)]">Title</Label.Root>
-                      <input
-                        value={row.title}
-                        onChange={(e) => updateVideoRow(row.key, { title: e.target.value })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <Label.Root className="text-xs text-[var(--app-muted)]">Description</Label.Root>
-                      <input
-                        value={row.description}
-                        onChange={(e) => updateVideoRow(row.key, { description: e.target.value })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 sm:col-span-2">
-                      <input
-                        id={`active-${row.key}`}
-                        type="checkbox"
-                        checked={row.isActive}
-                        onChange={(e) => updateVideoRow(row.key, { isActive: e.target.checked })}
-                        className="h-4 w-4 rounded border-[var(--app-border)]"
-                      />
-                      <Label.Root htmlFor={`active-${row.key}`} className="text-sm text-[var(--app-text)]">
-                        Active
-                      </Label.Root>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={onVideosDragEnd}
+            >
+              <SortableContext items={videoRows.map((r) => r.key)} strategy={verticalListSortingStrategy}>
+                <ul className="space-y-4">
+                  {videoRows.map((row, idx) => (
+                    <SortableCourseVideoRow
+                      key={row.key}
+                      row={row}
+                      index={idx}
+                      inputClass={inputClass}
+                      updateVideoRow={updateVideoRow}
+                      removeVideoRow={removeVideoRow}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
 

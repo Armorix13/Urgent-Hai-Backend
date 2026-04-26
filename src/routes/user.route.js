@@ -68,6 +68,12 @@ userRoute.put(
   authenticate,
   userController.changePassword
 );
+userRoute.post(
+  "/set-password",
+  authenticate,
+  validate(userValidationSchemas.setPasswordSchema),
+  userController.setPassword
+);
 userRoute.delete("/delete-account", authenticate, userController.deleteAccount);
 
 userRoute.get(

@@ -602,14 +602,6 @@ export default function SettingsPage() {
                   >
                     {profileSaving ? "Saving…" : "Save changes"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void load()}
-                    className="rounded-2xl border px-6 py-3 text-sm font-semibold transition hover:bg-[var(--app-bg)]"
-                    style={{ borderColor: "var(--app-border)", color: "var(--app-text)" }}
-                  >
-                    Reset
-                  </button>
                 </div>
               </form>
             )}

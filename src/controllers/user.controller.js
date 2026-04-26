@@ -114,6 +114,18 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+const setPassword = async (req, res, next) => {
+  try {
+    await userService.setInitialPassword(req);
+    return res.status(200).json({
+      success: true,
+      message: "Password created successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const deleteAccount = async (req, res, next) => {
   try {
     await userService.deleteAccount(req);
@@ -213,6 +225,7 @@ export const userController = {
   updateUser,
   getUserDetails,
   changePassword,
+  setPassword,
   verifyOtp,
   resetPassword,
   deleteAccount,

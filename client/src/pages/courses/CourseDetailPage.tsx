@@ -334,7 +334,6 @@ export default function CourseDetailPage() {
     loadEnrollments();
   }, [enrollOpen, isLearner, loadEnrollments]);
 
-  const lessons = course?.courseContent ?? [];
   const videos = course?.videos ?? [];
   const reviews = course?.courseRatings ?? [];
   const avgRating = course?.rating?.average ?? 0;
@@ -464,7 +463,7 @@ export default function CourseDetailPage() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard icon={Users} label="Enrollments" value={enrollments.toLocaleString()} sub="Total learners" />
         <StatCard
           icon={Star}
@@ -472,8 +471,7 @@ export default function CourseDetailPage() {
           value={ratingCount > 0 ? avgRating.toFixed(1) : "—"}
           sub={ratingCount > 0 ? `${ratingCount} review${ratingCount === 1 ? "" : "s"}` : "No reviews yet"}
         />
-        <StatCard icon={ListVideo} label="Videos" value={String(videoCount)} sub="In playlist" />
-        <StatCard icon={BookOpen} label="Lessons" value={String(lessons.length)} sub="Curriculum steps" />
+        <StatCard icon={ListVideo} label="Videos" value={String(videoCount)} sub="Course videos" />
       </div>
 
       <div className="mt-8 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)]/80 p-2 backdrop-blur-sm">

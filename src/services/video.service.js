@@ -16,25 +16,37 @@ const addVideo = async (req) => {
   }
 };
 
-// Get all videos with optional pagination
+// Get all videos with optional pagination — random order on every request (discovery feed).
 const getAllVideos = async (req) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
-    const page = parseInt(req.query.page) || 1;
-    const skip = (page - 1) * limit;
-
-    const videos = await Video.find()
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 10, 1),
+      100
+    );
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const total = await Video.countDocuments();
+
+    if (total === 0) {
+      return {
+        videos: [],
+        total: 0,
+        page,
+        totalPages: 0,
+      };
+    }
+
+    // $sample draws without replacement up to `sampleSize`. Each API call gets a new random draw.
+    const sampleSize = Math.min(total, limit * page);
+    const sampled = await Video.aggregate([{ $sample: { size: sampleSize } }]);
+
+    const videos = sampled.slice((page - 1) * limit, page * limit);
+    const totalPages = Math.ceil(total / limit);
 
     return {
       videos,
       total,
       page,
-      totalPages: Math.ceil(total / limit),
+      totalPages,
     };
   } catch (err) {
     throw err;
