@@ -33,7 +33,7 @@ export type SidebarFriend = {
 };
 
 export const brand = {
-  name: "Raag App",
+  name: "Raag Vidyalaya",
   tagline: "Gurbani & Raag",
 } as const;
 

@@ -4,10 +4,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useAuth } from "../context/AuthContext";
 import { readCollaboratorIdFromAccessToken } from "../lib/jwtPayload";
 import { API_BASE } from "../lib/env";
+import { brand } from "../config/navigation";
 import { ROUTES } from "../routes/paths";
 import { useTheme } from "../context/ThemeContext";
-
-const brandName = "Raag App";
 
 function NoiseOverlay() {
   return (
@@ -469,7 +468,7 @@ export default function LoginPage() {
         <div className="relative z-[1] max-w-xl">
           <EightPointStar className="mb-8 h-14 w-14 text-white drop-shadow-sm sm:h-16 sm:w-16" />
           <h1 className="font-semibold tracking-tight text-[clamp(1.75rem,4vw,2.75rem)] leading-[1.15] text-white">
-            Hello {brandName}! <span aria-hidden>👋</span>
+            Hello {brand.name}! <span aria-hidden>👋</span>
           </h1>
           <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/90 sm:text-base">
             Collaborator access for courses and content. Start with your email or phone—we
@@ -478,7 +477,7 @@ export default function LoginPage() {
         </div>
 
         <p className="relative z-[1] text-xs text-indigo-200/85 sm:text-sm">
-          © {new Date().getFullYear()} {brandName}. All rights reserved.
+          © {new Date().getFullYear()} {brand.name}. All rights reserved.
         </p>
 
         <div
@@ -500,7 +499,7 @@ export default function LoginPage() {
             className="text-center text-xl font-bold tracking-tight sm:text-2xl"
             style={{ color: "var(--app-text)" }}
           >
-            {brandName}
+            {brand.name}
           </p>
 
           <p
