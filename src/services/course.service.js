@@ -138,8 +138,14 @@ function rethrowDuplicateIdentifierId(err) {
 const addCourse = async (req) => {
   try {
     const body = sanitizeCoursePayload(req.body);
-    if (body.courseType === 1 && (body.price == null || body.price < 0)) {
-      throw new Error("Price is required for paid courses");
+    if (body.courseType === 2) {
+      body.price = 0;
+    } else if (body.courseType === 1) {
+      const p = Number(body.price);
+      if (!Number.isFinite(p) || p <= 0) {
+        throw new Error("Paid courses must have a price greater than zero.");
+      }
+      body.price = p;
     }
     const { courseFields, videos, hasVideos } = splitCourseBody(body);
     applySequentialOrderToCourseContent(courseFields);
@@ -387,6 +393,30 @@ const updateCourse = async (req) => {
     const updates = sanitizeCoursePayload(req.body);
     const { courseFields, videos, hasVideos } = splitCourseBody(updates);
     applySequentialOrderToCourseContent(courseFields);
+
+    const existing = await Course.findById(id).select("courseType price").lean();
+    if (!existing) {
+      throw new Error("Course not found");
+    }
+    const nextType =
+      courseFields.courseType !== undefined
+        ? Number(courseFields.courseType)
+        : existing.courseType;
+    const mergedPrice =
+      courseFields.price !== undefined
+        ? Number(courseFields.price)
+        : Number(existing.price ?? 0);
+
+    if (nextType === 2) {
+      courseFields.price = 0;
+    } else if (nextType === 1) {
+      if (!Number.isFinite(mergedPrice) || mergedPrice <= 0) {
+        throw new Error("Paid courses must have a price greater than zero.");
+      }
+      if (courseFields.price !== undefined) {
+        courseFields.price = mergedPrice;
+      }
+    }
 
     if (Object.prototype.hasOwnProperty.call(courseFields, "identifierId")) {
       const v = courseFields.identifierId;

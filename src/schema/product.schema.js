@@ -53,6 +53,9 @@ const getAllProductsSchema = {
       "number.base": "Limit must be a number.",
       "number.min": "Limit must be at least 1.",
     }),
+    search: Joi.string().trim().max(200).allow("").optional().messages({
+      "string.max": "Search must be at most 200 characters.",
+    }),
   }),
 };
 

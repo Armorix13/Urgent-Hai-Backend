@@ -10,8 +10,9 @@ import {
 } from "@/api/courseApi";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { formatPriceNumber } from "@/lib/formatPrice";
 import { buildCourseThumbnailCandidates } from "@/lib/youtubeThumbnail";
-import { ROUTES, courseDetailPath, courseEditPath } from "@/routes/paths";
+import { courseDetailPath, courseEditPath } from "@/routes/paths";
 
 type Filter = "all" | CourseTypeNum;
 
@@ -155,7 +156,7 @@ export default function CourseListPage() {
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-bold tracking-tight text-[var(--app-text)]">
             {user?.accountType === "collaborator" ? "Your courses" : "All courses"}
           </h2>
@@ -166,8 +167,9 @@ export default function CourseListPage() {
           </p>
         </div>
         <Link
-          to={ROUTES.dashboard.courseNew}
-          className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95"
+          to="new"
+          relative="path"
+          className="relative z-[1] inline-flex shrink-0 items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-page)]"
           style={{ background: "var(--app-primary)" }}
         >
           Add course
@@ -262,8 +264,9 @@ export default function CourseListPage() {
           <p className="text-[var(--app-muted)]">No courses match your filters.</p>
           {token && (
             <Link
-              to={ROUTES.dashboard.courseNew}
-              className="mt-4 inline-block text-sm font-semibold"
+              to="new"
+              relative="path"
+              className="relative z-[1] mt-4 inline-block text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-page)]"
               style={{ color: "var(--app-primary)" }}
             >
               Create the first course
@@ -407,9 +410,13 @@ export default function CourseListPage() {
                       {c.level}
                     </span>
                   )}
-                  {c.courseType === 1 && (
-                    <span className="font-semibold text-[var(--app-text)]">
-                      {typeof c.price === "number" ? c.price.toLocaleString() : "—"}
+                  {c.courseType === 2 ? (
+                    <span className="font-semibold tabular-nums text-[var(--app-text)]">
+                      {formatPriceNumber(0)}
+                    </span>
+                  ) : (
+                    <span className="font-semibold tabular-nums text-[var(--app-text)]">
+                      {formatPriceNumber(c.price)}
                     </span>
                   )}
                 </div>

@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, PlusCircle, Star } from "lucide-react";
+import { BarChart3, BookOpen, Star } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { brand, sidebarNav } from "../../config/navigation";
 import { ROUTES } from "../../routes/paths";
@@ -93,25 +93,6 @@ export default function AppSidebar() {
               <span className="min-w-0">
                 <span className="block text-sm font-medium">Analytics</span>
                 <span className="block text-xs opacity-80">Enrollments &amp; ratings</span>
-              </span>
-            </NavLink>
-            <NavLink
-              to={ROUTES.dashboard.courseNew}
-              className={({ isActive }) =>
-                [
-                  "flex items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors",
-                  isActive
-                    ? "bg-[var(--app-primary-soft)] text-[var(--app-primary)] dark:bg-[var(--app-primary-soft-dark)]"
-                    : "text-[var(--app-text-secondary)] hover:bg-black/5 dark:hover:bg-white/5",
-                ].join(" ")
-              }
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                <PlusCircle className="h-4 w-4" strokeWidth={2} aria-hidden />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">Add course</span>
-                <span className="block text-xs opacity-80">Create new content</span>
               </span>
             </NavLink>
             <NavLink

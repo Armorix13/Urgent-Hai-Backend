@@ -427,7 +427,7 @@ export default function SettingsPage() {
                           </button>
                         </div>
                         <div className="mb-1 min-w-0">
-                          <p className="truncate font-display text-lg font-semibold text-[var(--app-text)]">
+                          <p className="truncate text-lg font-semibold text-[var(--app-text)]">
                             {name.trim() || "Your name"}
                           </p>
                           <p className="truncate text-sm text-[var(--app-muted)]">
@@ -620,7 +620,7 @@ export default function SettingsPage() {
                       <KeyRound className="h-5 w-5" strokeWidth={2} />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="font-display text-base font-semibold text-[var(--app-text)]">
+                      <h2 className="text-base font-semibold text-[var(--app-text)]">
                         {profile?.hasPassword ? "Change password" : "Create password"}
                       </h2>
                       <p className="mt-1 text-sm leading-relaxed text-[var(--app-muted)]">

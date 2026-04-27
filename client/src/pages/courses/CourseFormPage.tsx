@@ -17,10 +17,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Label from "@radix-ui/react-label";
 import * as Select from "@radix-ui/react-select";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GripHorizontal, Play, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { buildVideoPosterUrls, extractYoutubeVideoId, getYoutubeEmbedUrl } from "@/lib/youtubeThumbnail";
@@ -33,6 +34,7 @@ import {
   type CourseTypeNum,
 } from "@/api/courseApi";
 import { ApiError } from "@/lib/api";
+import { formatPriceNumber } from "@/lib/formatPrice";
 import { useAuth } from "@/context/AuthContext";
 import { readCollaboratorIdFromAccessToken } from "@/lib/jwtPayload";
 import { ROUTES } from "@/routes/paths";
@@ -475,6 +477,9 @@ export default function CourseFormPage() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paidPriceDialogOpen, setPaidPriceDialogOpen] = useState(false);
+  const [paidPriceDialogMessage, setPaidPriceDialogMessage] = useState("");
+  const priceInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
   const [identifierId, setIdentifierId] = useState("");
@@ -627,6 +632,17 @@ export default function CourseFormPage() {
       return;
     }
 
+    if (courseType === 1) {
+      const p = Number.parseFloat(price);
+      if (!Number.isFinite(p) || p <= 0) {
+        setPaidPriceDialogMessage(
+          "Paid courses cannot be saved with a price of 0. Enter a number greater than 0 in the price field, then try again.",
+        );
+        setPaidPriceDialogOpen(true);
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
 
@@ -659,7 +675,7 @@ export default function CourseFormPage() {
     };
 
     if (courseType === 1) {
-      body.price = Math.max(0, Number.parseFloat(price) || 0);
+      body.price = Number.parseFloat(price);
     } else {
       body.price = 0;
     }
@@ -785,7 +801,7 @@ export default function CourseFormPage() {
                   spellCheck={false}
                   title="Collaborator document _id this course is linked to"
                   placeholder="Paste collaborator MongoDB ObjectId"
-                  className={`${inputClass} font-mono text-[13px] tracking-tight`}
+                  className={`${inputClass} font-nunito-sans text-[13px] tracking-tight`}
                 />
                 <p className="text-xs text-[var(--app-muted)]">
                   Required: the collaborator document ID this course belongs to.
@@ -815,6 +831,15 @@ export default function CourseFormPage() {
                 value={String(courseType)}
                 onValueChange={(v) => {
                   const t = Number(v) as CourseTypeNum;
+                  if (t === 1) {
+                    const p = Number.parseFloat(price);
+                    if (!Number.isFinite(p) || p <= 0) {
+                      setPaidPriceDialogMessage(
+                        "You switched to a paid course. Enter a price greater than 0 in the price field below, then save.",
+                      );
+                      setPaidPriceDialogOpen(true);
+                    }
+                  }
                   setCourseType(t);
                   if (t === 2) setPrice("0");
                 }}
@@ -870,25 +895,30 @@ export default function CourseFormPage() {
                 >
                   <p className="font-semibold text-[var(--app-text)]">Free — no payment required</p>
                   <p className="mt-1 text-[var(--app-muted)]">
-                    Learners are not charged. This course is saved with price <span className="tabular-nums font-medium text-[var(--app-text)]">$0.00</span>.
+                    Learners are not charged. This course is saved with price{" "}
+                    <span className="tabular-nums font-medium text-[var(--app-text)]">
+                      {formatPriceNumber(0)}
+                    </span>
+                    .
                   </p>
                 </div>
               ) : (
                 <>
                   <input
+                    ref={priceInputRef}
                     id="price"
                     type="number"
-                    min={0}
+                    min={0.01}
                     step="0.01"
                     inputMode="decimal"
                     required
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="e.g. 29.99"
                     className={inputClass}
                   />
                   <p className="text-xs text-[var(--app-muted)]">
-                    Amount learners pay (0 is allowed). Use the same currency you display elsewhere.
+                    Paid courses must use a price greater than 0 (numbers only, no currency).
                   </p>
                 </>
               )}
@@ -1088,6 +1118,47 @@ export default function CourseFormPage() {
           </Link>
         </div>
       </form>
+
+      <AlertDialog.Root
+        open={paidPriceDialogOpen}
+        onOpenChange={(open) => {
+          setPaidPriceDialogOpen(open);
+          if (!open) {
+            window.setTimeout(() => {
+              if (courseType === 1) priceInputRef.current?.focus();
+            }, 0);
+          }
+        }}
+      >
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-[200] bg-black/50" />
+          <AlertDialog.Content
+            className="fixed left-1/2 top-1/2 z-[201] w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-[var(--app-surface)] p-6 shadow-xl focus:outline-none"
+            style={{ borderColor: "var(--app-border)" }}
+          >
+            <AlertDialog.Title className="text-lg font-semibold text-[var(--app-text)]">
+              Price required for paid courses
+            </AlertDialog.Title>
+            <AlertDialog.Description className="mt-3 text-sm leading-relaxed text-[var(--app-muted)]">
+              {paidPriceDialogMessage}
+            </AlertDialog.Description>
+            <div
+              className="mt-6 flex justify-end border-t pt-4"
+              style={{ borderColor: "var(--app-border)" }}
+            >
+              <AlertDialog.Action asChild>
+                <button
+                  type="button"
+                  className="rounded-xl bg-[var(--app-primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2"
+                  style={{ outlineColor: "var(--app-primary)" }}
+                >
+                  OK
+                </button>
+              </AlertDialog.Action>
+            </div>
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
     </div>
   );
 }

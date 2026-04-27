@@ -1,6 +1,5 @@
 import { FormEvent, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import * as Dialog from "@radix-ui/react-dialog";
 import { useAuth } from "../context/AuthContext";
 import { readCollaboratorIdFromAccessToken } from "../lib/jwtPayload";
 import { API_BASE } from "../lib/env";
@@ -54,38 +53,36 @@ function EightPointStar({ className }: { className?: string }) {
 type ResolvedProfile = {
   hasPassword: boolean;
   email: string | null;
-  phoneNumber: string | null;
   name: string | null;
 };
 
-type ModalPhase = "password" | "setPassword";
+type FlowStep = "email" | "credentials";
+type CredentialPhase = "password" | "setPassword";
+
+function isValidEmailFormat(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function resolvedEmail(profile: ResolvedProfile, formEmail: string): string {
+  const fromProfile = profile.email?.trim();
+  if (fromProfile) return fromProfile.toLowerCase();
+  return formEmail.trim().toLowerCase();
+}
 
 function loginPayloadForProfile(
   profile: ResolvedProfile,
   password: string,
+  formEmail: string,
 ): Record<string, unknown> {
-  const hasEmail = profile.email != null && profile.email !== "";
-  if (hasEmail) {
-    return { email: profile.email, password, deviceType: 1 };
-  }
   return {
-    phoneNumber: profile.phoneNumber ?? "",
+    email: resolvedEmail(profile, formEmail),
     password,
     deviceType: 1,
   };
 }
 
-function setPasswordBody(profile: ResolvedProfile, password: string) {
-  const body: { password: string; email?: string; phoneNumber?: string } = {
-    password,
-  };
-  if (profile.email != null && profile.email !== "") {
-    body.email = profile.email;
-  }
-  if (profile.phoneNumber != null && profile.phoneNumber !== "") {
-    body.phoneNumber = profile.phoneNumber;
-  }
-  return body;
+function setPasswordBody(profile: ResolvedProfile, password: string, formEmail: string) {
+  return { password, email: resolvedEmail(profile, formEmail) };
 }
 
 export default function LoginPage() {
@@ -93,68 +90,66 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
-  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
-  const [modalOpen, setModalOpen] = useState(false);
+  const [flowStep, setFlowStep] = useState<FlowStep>("email");
   const [resolvedProfile, setResolvedProfile] = useState<ResolvedProfile | null>(
     null,
   );
-  const [modalPhase, setModalPhase] = useState<ModalPhase>("password");
+  const [credentialPhase, setCredentialPhase] = useState<CredentialPhase>("password");
 
-  const [modalPassword, setModalPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [modalError, setModalError] = useState<string | null>(null);
-  const [modalBusy, setModalBusy] = useState(false);
+  const [credentialError, setCredentialError] = useState<string | null>(null);
+  const [credentialBusy, setCredentialBusy] = useState(false);
   const [setupHint, setSetupHint] = useState<string | null>(null);
 
   if (user) {
     return <Navigate to={ROUTES.dashboard.home} replace />;
   }
 
-  function resetModal() {
-    setResolvedProfile(null);
-    setModalPhase("password");
-    setModalPassword("");
+  function resetCredentialState() {
+    setCredentialPhase("password");
+    setPassword("");
     setNewPassword("");
     setConfirmNewPassword("");
-    setModalError(null);
+    setCredentialError(null);
     setSetupHint(null);
-    setModalBusy(false);
+    setCredentialBusy(false);
   }
 
-  function onModalOpenChange(open: boolean) {
-    setModalOpen(open);
-    if (!open) resetModal();
+  function goBackToEmail() {
+    setResolvedProfile(null);
+    setFlowStep("email");
+    resetCredentialState();
   }
 
   async function handleContinue(e: FormEvent) {
     e.preventDefault();
     setLookupError(null);
-    const trimmed = identifier.trim();
+    const trimmed = email.trim();
     if (!trimmed) {
-      setLookupError("Enter your email or phone number.");
+      setLookupError("Enter your email address.");
       return;
     }
-    const looksLikeEmail = trimmed.includes("@");
+    if (!isValidEmailFormat(trimmed)) {
+      setLookupError("Enter a valid email address.");
+      return;
+    }
     setLookupLoading(true);
     try {
       const res = await fetch(`${API_BASE}/collaborator/lookup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          looksLikeEmail
-            ? { email: trimmed.toLowerCase() }
-            : { phoneNumber: trimmed },
-        ),
+        body: JSON.stringify({ email: trimmed.toLowerCase() }),
       });
       const data = (await res.json()) as {
         message?: string;
         hasPassword?: boolean;
         email?: string | null;
-        phoneNumber?: string | null;
         name?: string | null;
       };
       if (!res.ok) {
@@ -163,17 +158,16 @@ export default function LoginPage() {
       const profile: ResolvedProfile = {
         hasPassword: Boolean(data.hasPassword),
         email: data.email ?? null,
-        phoneNumber: data.phoneNumber ?? null,
         name: data.name ?? null,
       };
       setResolvedProfile(profile);
-      setModalPhase(profile.hasPassword ? "password" : "setPassword");
-      setModalPassword("");
+      setCredentialPhase(profile.hasPassword ? "password" : "setPassword");
+      setPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-      setModalError(null);
+      setCredentialError(null);
       setSetupHint(null);
-      setModalOpen(true);
+      setFlowStep("credentials");
     } catch (err) {
       setLookupError(err instanceof Error ? err.message : "Lookup failed.");
     } finally {
@@ -181,18 +175,18 @@ export default function LoginPage() {
     }
   }
 
-  async function handleModalLogin(e: FormEvent) {
+  async function handleCredentialLogin(e: FormEvent) {
     e.preventDefault();
-    setModalError(null);
+    setCredentialError(null);
     setSetupHint(null);
     if (!resolvedProfile) return;
-    if (modalPassword.length < 8) {
-      setModalError("Password must be at least 8 characters.");
+    if (password.length < 8) {
+      setCredentialError("Password must be at least 8 characters.");
       return;
     }
-    setModalBusy(true);
+    setCredentialBusy(true);
     try {
-      const body = loginPayloadForProfile(resolvedProfile, modalPassword);
+      const body = loginPayloadForProfile(resolvedProfile, password, email);
       const res = await fetch(`${API_BASE}/collaborator/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -205,13 +199,12 @@ export default function LoginPage() {
           _id?: string;
           name?: string;
           email?: string;
-          phoneNumber?: string;
           access_token?: string;
         };
       };
       if (res.status === 403 && data.needsPasswordSetup) {
-        setModalPhase("setPassword");
-        setModalError(null);
+        setCredentialPhase("setPassword");
+        setCredentialError(null);
         setSetupHint(
           data.message ??
             "You still need to create a password. Use the form below, then sign in.",
@@ -226,76 +219,67 @@ export default function LoginPage() {
         throw new Error("No access token returned.");
       }
       const displayName =
-        (c.name && c.name.trim()) ||
-        c.email?.split("@")[0] ||
-        c.phoneNumber ||
-        "Collaborator";
+        (c.name && c.name.trim()) || c.email?.split("@")[0] || "Collaborator";
       const fromDoc = c._id != null ? String(c._id) : "";
       const collaboratorId =
         fromDoc || readCollaboratorIdFromAccessToken(c.access_token) || undefined;
       login({
-        email:
-          c.email ?? resolvedProfile.email ?? c.phoneNumber ?? identifier.trim(),
+        email: c.email ?? resolvedProfile.email ?? email.trim(),
         displayName,
         accessToken: c.access_token,
         accountType: "collaborator",
         collaboratorId,
       });
-      setModalOpen(false);
-      resetModal();
       navigate(ROUTES.dashboard.home, { replace: true });
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : "Login failed");
+      setCredentialError(err instanceof Error ? err.message : "Login failed");
     } finally {
-      setModalBusy(false);
+      setCredentialBusy(false);
     }
   }
 
-  async function handleModalSetPassword(e: FormEvent) {
+  async function handleSetPassword(e: FormEvent) {
     e.preventDefault();
-    setModalError(null);
+    setCredentialError(null);
     if (!resolvedProfile) return;
     if (newPassword !== confirmNewPassword) {
-      setModalError("Passwords do not match.");
+      setCredentialError("Passwords do not match.");
       return;
     }
     if (newPassword.length < 8) {
-      setModalError("Password must be at least 8 characters.");
+      setCredentialError("Password must be at least 8 characters.");
       return;
     }
-    setModalBusy(true);
+    setCredentialBusy(true);
     try {
       const res = await fetch(`${API_BASE}/collaborator/set-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(setPasswordBody(resolvedProfile, newPassword)),
+        body: JSON.stringify(setPasswordBody(resolvedProfile, newPassword, email)),
       });
       const data = (await res.json()) as { message?: string };
       if (!res.ok) {
         throw new Error(data.message || "Could not set password");
       }
       setResolvedProfile((p) => (p ? { ...p, hasPassword: true } : p));
-      setModalPhase("password");
+      setCredentialPhase("password");
       setNewPassword("");
       setConfirmNewPassword("");
-      setModalPassword("");
-      setModalError(null);
+      setPassword("");
+      setCredentialError(null);
       setSetupHint("Password saved. Enter it below to sign in.");
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : "Could not set password");
+      setCredentialError(err instanceof Error ? err.message : "Could not set password");
     } finally {
-      setModalBusy(false);
+      setCredentialBusy(false);
     }
   }
 
   const displayLabel =
-    resolvedProfile?.name?.trim() ||
-    resolvedProfile?.email ||
-    resolvedProfile?.phoneNumber ||
-    "Collaborator";
+    resolvedProfile?.name?.trim() || resolvedProfile?.email || email.trim() || "Collaborator";
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[var(--app-page)] antialiased lg:flex-row">
+    <div className="font-nunito-sans relative flex min-h-screen flex-col bg-[var(--app-page)] antialiased lg:flex-row">
       <button
         type="button"
         onClick={toggleTheme}
@@ -316,144 +300,6 @@ export default function LoginPage() {
         )}
       </button>
 
-      <Dialog.Root open={modalOpen} onOpenChange={onModalOpenChange}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-[2px] dark:bg-black/70" />
-          <Dialog.Content
-            className="fixed left-1/2 top-1/2 z-[101] w-[min(92vw,420px)] max-h-[min(90vh,640px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border bg-[var(--app-surface)] p-6 shadow-xl dark:shadow-black/40 focus:outline-none"
-            style={{ borderColor: "var(--app-border)" }}
-          >
-            <Dialog.Description className="sr-only">
-              Enter or create your collaborator password to continue.
-            </Dialog.Description>
-            <Dialog.Title className="text-lg font-semibold text-[var(--app-text)]">
-              {modalPhase === "password" ? "Enter password" : "Create password"}
-            </Dialog.Title>
-            <p className="mt-1 text-sm text-[var(--app-muted)]">
-              {resolvedProfile ? (
-                <>
-                  Signing in as{" "}
-                  <span className="font-medium text-[var(--app-text)]">{displayLabel}</span>
-                </>
-              ) : null}
-            </p>
-
-            {setupHint && (
-              <p
-                className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200"
-                role="status"
-              >
-                {setupHint}
-              </p>
-            )}
-
-            {modalError && (
-              <p
-                className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
-                role="alert"
-              >
-                {modalError}
-              </p>
-            )}
-
-            {modalPhase === "setPassword" ? (
-              <form className="mt-6 space-y-4" onSubmit={handleModalSetPassword}>
-                <p className="text-xs leading-relaxed text-[var(--app-muted)]">
-                  No password is set for this profile yet. Choose at least 8 characters.
-                </p>
-                <div>
-                  <label htmlFor="modal-new-pass" className="sr-only">
-                    New password
-                  </label>
-                  <input
-                    id="modal-new-pass"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New password"
-                    className="w-full rounded-lg border bg-[var(--app-page)] px-3 py-2.5 text-[15px] text-[var(--app-text)] outline-none transition-colors placeholder:text-[var(--app-muted)] focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)]/30"
-                    style={{ borderColor: "var(--app-border)" }}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="modal-confirm-pass" className="sr-only">
-                    Confirm password
-                  </label>
-                  <input
-                    id="modal-confirm-pass"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    placeholder="Confirm password"
-                    className="w-full rounded-lg border bg-[var(--app-page)] px-3 py-2.5 text-[15px] text-[var(--app-text)] outline-none transition-colors placeholder:text-[var(--app-muted)] focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)]/30"
-                    style={{ borderColor: "var(--app-border)" }}
-                  />
-                </div>
-                <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
-                  <Dialog.Close asChild>
-                    <button
-                      type="button"
-                      className="rounded-lg border px-4 py-2.5 text-sm font-medium text-[var(--app-text)] transition-colors hover:bg-[var(--app-page)] dark:hover:bg-white/[0.06]"
-                      style={{ borderColor: "var(--app-border)" }}
-                    >
-                      Cancel
-                    </button>
-                  </Dialog.Close>
-                  <button
-                    type="submit"
-                    disabled={modalBusy}
-                    className="rounded-lg bg-[var(--app-primary)] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface)] disabled:opacity-60"
-                  >
-                    {modalBusy ? "Saving…" : "Save password"}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form className="mt-6 space-y-4" onSubmit={handleModalLogin}>
-                <div>
-                  <label htmlFor="modal-pass" className="sr-only">
-                    Password
-                  </label>
-                  <input
-                    id="modal-pass"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={modalPassword}
-                    onChange={(e) => setModalPassword(e.target.value)}
-                    placeholder="Password"
-                    className="w-full rounded-lg border bg-[var(--app-page)] px-3 py-2.5 text-[15px] text-[var(--app-text)] outline-none transition-colors placeholder:text-[var(--app-muted)] focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)]/30"
-                    style={{ borderColor: "var(--app-border)" }}
-                  />
-                </div>
-                <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
-                  <Dialog.Close asChild>
-                    <button
-                      type="button"
-                      className="rounded-lg border px-4 py-2.5 text-sm font-medium text-[var(--app-text)] transition-colors hover:bg-[var(--app-page)] dark:hover:bg-white/[0.06]"
-                      style={{ borderColor: "var(--app-border)" }}
-                    >
-                      Back
-                    </button>
-                  </Dialog.Close>
-                  <button
-                    type="submit"
-                    disabled={modalBusy}
-                    className="rounded-lg bg-[var(--app-primary)] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface)] disabled:opacity-60"
-                  >
-                    {modalBusy ? "Signing in…" : "Sign in"}
-                  </button>
-                </div>
-              </form>
-            )}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
       <section
         className="relative flex min-h-[38vh] flex-col justify-between overflow-hidden px-8 pb-8 pt-10 text-white sm:px-12 sm:pb-12 sm:pt-14 lg:min-h-screen lg:w-[58%] lg:px-16 lg:pb-14 lg:pt-16 xl:px-20 xl:pb-20 xl:pt-20"
         style={{
@@ -471,8 +317,8 @@ export default function LoginPage() {
             Hello {brand.name}! <span aria-hidden>👋</span>
           </h1>
           <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/90 sm:text-base">
-            Collaborator access for courses and content. Start with your email or phone—we
-            will guide you through password or setup.
+            Collaborator access for courses and content. Sign in with your work email—we
+            will guide you through password entry or first-time setup.
           </p>
         </div>
 
@@ -509,51 +355,191 @@ export default function LoginPage() {
             Collaborator
           </p>
 
-          <h2 className="font-display mt-6 text-3xl font-bold tracking-tight text-[var(--app-text)] sm:text-4xl">
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-[var(--app-text)] sm:text-4xl">
             Sign in
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[var(--app-muted)]">
-            Step 1: enter the email or phone number on your collaborator profile. We check
-            whether a password exists, then ask for it or help you create one.
+            {flowStep === "email" ? (
+              <>
+                Enter the email on your collaborator profile. If it matches, you will continue
+                here to enter your password or set one up.
+              </>
+            ) : (
+              <>
+                Profile found. Enter your password below, or create one if this is your first
+                time signing in.
+              </>
+            )}
           </p>
 
-          <form className="mt-10 space-y-8" onSubmit={handleContinue} noValidate>
-            {lookupError && (
-              <div
-                className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
-                role="alert"
-              >
-                {lookupError}
+          {flowStep === "email" ? (
+            <form className="mt-10 space-y-8" onSubmit={handleContinue} noValidate>
+              {lookupError && (
+                <div
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+                  role="alert"
+                >
+                  {lookupError}
+                </div>
+              )}
+              <div>
+                <label htmlFor="login-email" className="sr-only">
+                  Email address
+                </label>
+                <input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  required
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setLookupError(null);
+                  }}
+                  placeholder="Email address"
+                  className="w-full rounded-none border-0 border-b border-[var(--app-border)] bg-transparent py-2.5 text-[15px] text-[var(--app-text)] placeholder:text-[var(--app-muted)] outline-none transition-colors focus:border-[var(--app-primary)] focus:ring-0"
+                />
               </div>
-            )}
-            <div>
-              <label htmlFor="identifier" className="sr-only">
-                Email or phone number
-              </label>
-              <input
-                id="identifier"
-                name="identifier"
-                type="text"
-                autoComplete="username"
-                required
-                value={identifier}
-                onChange={(e) => {
-                  setIdentifier(e.target.value);
-                  setLookupError(null);
-                }}
-                placeholder="Email or phone number"
-                className="w-full rounded-none border-0 border-b border-[var(--app-border)] bg-transparent py-2.5 text-[15px] text-[var(--app-text)] placeholder:text-[var(--app-muted)] outline-none transition-colors focus:border-[var(--app-primary)] focus:ring-0"
-              />
-            </div>
 
-            <button
-              type="submit"
-              disabled={lookupLoading}
-              className="flex w-full items-center justify-center rounded-xl bg-[var(--app-primary)] py-3.5 text-[15px] font-semibold text-white shadow-md transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface)] disabled:opacity-60"
-            >
-              {lookupLoading ? "Checking…" : "Continue"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={lookupLoading}
+                className="flex w-full items-center justify-center rounded-xl bg-[var(--app-primary)] py-3.5 text-[15px] font-semibold text-white shadow-md transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface)] disabled:opacity-60"
+              >
+                {lookupLoading ? "Checking…" : "Continue"}
+              </button>
+            </form>
+          ) : (
+            <div className="mt-8 space-y-6">
+              <div
+                className="rounded-xl border bg-[var(--app-page)] px-4 py-3 text-sm"
+                style={{ borderColor: "var(--app-border)" }}
+              >
+                <p className="text-[var(--app-muted)]">Signing in as</p>
+                <p className="mt-1 font-semibold text-[var(--app-text)]">{displayLabel}</p>
+                <p className="mt-1 truncate text-xs text-[var(--app-muted)]" title={email.trim()}>
+                  {email.trim()}
+                </p>
+              </div>
+
+              {setupHint && (
+                <p
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200"
+                  role="status"
+                >
+                  {setupHint}
+                </p>
+              )}
+
+              {credentialError && (
+                <p
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+                  role="alert"
+                >
+                  {credentialError}
+                </p>
+              )}
+
+              <h3 className="text-lg font-semibold text-[var(--app-text)]">
+                {credentialPhase === "password" ? "Enter password" : "Create password"}
+              </h3>
+
+              {credentialPhase === "setPassword" ? (
+                <form className="space-y-5" onSubmit={handleSetPassword} noValidate>
+                  <p className="text-xs leading-relaxed text-[var(--app-muted)]">
+                    No password is set for this profile yet. Choose at least 8 characters.
+                  </p>
+                  <div>
+                    <label htmlFor="login-new-pass" className="sr-only">
+                      New password
+                    </label>
+                    <input
+                      id="login-new-pass"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New password"
+                      className="w-full rounded-lg border bg-[var(--app-surface)] px-3 py-2.5 text-[15px] text-[var(--app-text)] outline-none transition-colors placeholder:text-[var(--app-muted)] focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)]/30"
+                      style={{ borderColor: "var(--app-border)" }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="login-confirm-pass" className="sr-only">
+                      Confirm password
+                    </label>
+                    <input
+                      id="login-confirm-pass"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      placeholder="Confirm password"
+                      className="w-full rounded-lg border bg-[var(--app-surface)] px-3 py-2.5 text-[15px] text-[var(--app-text)] outline-none transition-colors placeholder:text-[var(--app-muted)] focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)]/30"
+                      style={{ borderColor: "var(--app-border)" }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-between">
+                    <button
+                      type="button"
+                      onClick={goBackToEmail}
+                      className="order-2 rounded-xl border px-4 py-3 text-sm font-medium text-[var(--app-text)] transition-colors hover:bg-[var(--app-page)] dark:hover:bg-white/[0.06] sm:order-1"
+                      style={{ borderColor: "var(--app-border)" }}
+                    >
+                      Use a different email
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={credentialBusy}
+                      className="order-1 rounded-xl bg-[var(--app-primary)] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface)] disabled:opacity-60 sm:order-2 sm:min-w-[10rem]"
+                    >
+                      {credentialBusy ? "Saving…" : "Save password"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form className="space-y-5" onSubmit={handleCredentialLogin} noValidate>
+                  <div>
+                    <label htmlFor="login-pass" className="sr-only">
+                      Password
+                    </label>
+                    <input
+                      id="login-pass"
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      className="w-full rounded-lg border bg-[var(--app-surface)] px-3 py-2.5 text-[15px] text-[var(--app-text)] outline-none transition-colors placeholder:text-[var(--app-muted)] focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)]/30"
+                      style={{ borderColor: "var(--app-border)" }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-between">
+                    <button
+                      type="button"
+                      onClick={goBackToEmail}
+                      className="order-2 rounded-xl border px-4 py-3 text-sm font-medium text-[var(--app-text)] transition-colors hover:bg-[var(--app-page)] dark:hover:bg-white/[0.06] sm:order-1"
+                      style={{ borderColor: "var(--app-border)" }}
+                    >
+                      Use a different email
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={credentialBusy}
+                      className="order-1 rounded-xl bg-[var(--app-primary)] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-surface)] disabled:opacity-60 sm:order-2 sm:min-w-[10rem]"
+                    >
+                      {credentialBusy ? "Signing in…" : "Sign in"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
 
           <p className="mt-10 text-center text-sm text-[var(--app-muted)]">
             Need access? Contact your administrator.

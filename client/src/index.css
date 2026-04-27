@@ -5,8 +5,10 @@
   --font-sans:
     "Nunito Sans", "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji";
-  /* Display / headings — use `font-display` or `.font-smooch-sans` */
-  --font-display: "Smooch Sans", "Nunito Sans", ui-sans-serif, sans-serif;
+  /* Keep display token aligned with app sans for one-font consistency */
+  --font-display:
+    "Nunito Sans", "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -43,13 +45,7 @@ body,
   height: 100%;
 }
 
-body {
-  margin: 0;
-  background: var(--app-page);
-  color: var(--app-text);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+html {
   font-family: var(--font-sans);
   font-optical-sizing: auto;
   font-style: normal;
@@ -59,7 +55,35 @@ body {
     "liga" 1;
 }
 
-/* Headings default to Smooch Sans; weight from `font-bold` / `font-semibold` etc. */
+body {
+  margin: 0;
+  background: var(--app-page);
+  color: var(--app-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-family: inherit;
+}
+
+/* Ensure all UI controls inherit the same app font family */
+*,
+*::before,
+*::after {
+  font-family: inherit;
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
+}
+
+::placeholder {
+  font: inherit;
+}
+
+/* Keep headings on same family as body for full consistency */
 h1,
 h2,
 h3,
@@ -71,12 +95,9 @@ h6 {
   font-style: normal;
 }
 
-/**
- * Smooch Sans — set weight with Tailwind (`font-light` … `font-black`) or CSS.
- * Mirrors Google Fonts’ .smooch-sans-* snippet (optical sizing + family).
- */
+/* Alias kept for compatibility; resolves to app sans family */
 .font-smooch-sans {
-  font-family: "Smooch Sans", sans-serif;
+  font-family: var(--font-sans);
   font-optical-sizing: auto;
   font-style: normal;
 }

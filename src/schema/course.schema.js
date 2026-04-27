@@ -40,10 +40,16 @@ const addCourseSchema = {
       identifierId: Joi.string().trim().max(256).allow(null, "").optional(),
       description: Joi.string().trim().max(2000).required(),
       courseType: Joi.number().valid(1, 2).required(),
-      price: Joi.number().min(0).when("courseType", {
+      price: Joi.number().when("courseType", {
         is: 1,
-        then: Joi.required(),
-        otherwise: Joi.optional(),
+        then: Joi.number().positive().required().messages({
+          "number.base": "Price must be a number for paid courses.",
+          "number.positive": "Paid courses must have a price greater than zero.",
+          "any.required": "Price is required for paid courses.",
+        }),
+        otherwise: Joi.number().valid(0).optional().messages({
+          "any.only": "Free courses must use price 0.",
+        }),
       }),
     benefits: Joi.array().items(Joi.string().max(500)).optional(),
     category: Joi.string().trim().max(100).required(),
@@ -71,7 +77,9 @@ const updateCourseSchema = {
     identifierId: Joi.string().trim().max(256).allow(null, "").optional(),
     description: Joi.string().trim().max(2000).optional(),
     courseType: Joi.number().valid(1, 2).optional(),
-    price: Joi.number().min(0).optional(),
+    price: Joi.number().min(0).optional().messages({
+      "number.min": "Price cannot be negative.",
+    }),
     benefits: Joi.array().items(Joi.string().max(500)).optional(),
     category: Joi.string().trim().max(100).optional(),
     thumbnail: Joi.alternatives()

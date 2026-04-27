@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import CourseVideo from "./courseVideo.model.js";
 
 /** Safe Collaborator fields on course APIs (password never selected). */
 export const courseCollaboratorPopulate = {
@@ -179,6 +180,20 @@ courseSchema.virtual("courseTypeName").get(function () {
 courseSchema.set("toJSON", { virtuals: true });
 courseSchema.set("toObject", { virtuals: true });
 
+/** Escape user input for use inside MongoDB `$regexMatch` / RegExp (literal match). */
+function escapeRegexForSearch(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const SEARCH_SORT_WHITELIST = new Set([
+  "createdAt",
+  "updatedAt",
+  "title",
+  "price",
+  "enrollmentCount",
+  "rating.average",
+]);
+
 courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
   const {
     page = 1,
@@ -213,17 +228,6 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
     }
   }
 
-  if (search) {
-    const searchRegex = new RegExp(search, "i");
-    query.$or = [
-      { title: searchRegex },
-      { description: searchRegex },
-      { category: searchRegex },
-      { identifierId: searchRegex },
-      { tags: { $in: [searchRegex] } },
-    ];
-  }
-
   if (courseType !== null) query.courseType = courseType;
   if (category) query.category = new RegExp(category, "i");
   if (level) query.level = level;
@@ -243,27 +247,187 @@ courseSchema.statics.getCoursesWithPagination = async function (options = {}) {
   }
 
   const skip = (page - 1) * limit;
+  const lim = parseInt(limit, 10);
+  const pg = parseInt(page, 10);
+  const sortCol = SEARCH_SORT_WHITELIST.has(sortBy) ? sortBy : "createdAt";
+  const sortDir = sortOrder === "desc" ? -1 : 1;
   const sortOptions = {};
-  sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
+  sortOptions[sortCol] = sortDir;
 
-  const courses = await this.find(query)
-    .populate(courseCollaboratorPopulate)
-    .sort(sortOptions)
-    .skip(skip)
-    .limit(parseInt(limit))
-    .lean();
+  const searchTrimmed = search && String(search).trim();
 
-  const total = await this.countDocuments(query);
+  let matchQuery = query;
+  let searchPattern = "";
+  let videoCourseIdsForSearch = [];
+
+  if (searchTrimmed) {
+    searchPattern = escapeRegexForSearch(searchTrimmed);
+    const re = new RegExp(searchPattern, "i");
+    videoCourseIdsForSearch = await CourseVideo.distinct("courseId", {
+      isActive: true,
+      $or: [{ title: re }, { description: re }],
+    });
+    matchQuery = {
+      ...query,
+      $or: [
+        { title: re },
+        { description: re },
+        { tags: re },
+        { category: re },
+        { identifierId: re },
+        { "courseContent.title": re },
+        { "courseContent.description": re },
+        ...(videoCourseIdsForSearch.length
+          ? [{ _id: { $in: videoCourseIdsForSearch } }]
+          : []),
+      ],
+    };
+  }
+
+  const total = await this.countDocuments(matchQuery);
+
+  let courses;
+  if (searchTrimmed) {
+    const pattern = searchPattern;
+
+    const rankExpr = {
+      $cond: [
+        {
+          $regexMatch: {
+            input: { $toString: { $ifNull: ["$title", ""] } },
+            regex: pattern,
+            options: "i",
+          },
+        },
+        1,
+        {
+          $cond: [
+            {
+              $regexMatch: {
+                input: { $toString: { $ifNull: ["$description", ""] } },
+                regex: pattern,
+                options: "i",
+              },
+            },
+            2,
+            {
+              $cond: [
+                {
+                  $gt: [
+                    {
+                      $size: {
+                        $filter: {
+                          input: { $ifNull: ["$tags", []] },
+                          as: "t",
+                          cond: {
+                            $regexMatch: {
+                              input: { $toString: "$$t" },
+                              regex: pattern,
+                              options: "i",
+                            },
+                          },
+                        },
+                      },
+                    },
+                    0,
+                  ],
+                },
+                3,
+                {
+                  $cond: [
+                    {
+                      $or: [
+                        {
+                          $gt: [
+                            {
+                              $size: {
+                                $filter: {
+                                  input: { $ifNull: ["$courseContent", []] },
+                                  as: "c",
+                                  cond: {
+                                    $or: [
+                                      {
+                                        $regexMatch: {
+                                          input: {
+                                            $toString: { $ifNull: ["$$c.title", ""] },
+                                          },
+                                          regex: pattern,
+                                          options: "i",
+                                        },
+                                      },
+                                      {
+                                        $regexMatch: {
+                                          input: {
+                                            $toString: {
+                                              $ifNull: ["$$c.description", ""],
+                                            },
+                                          },
+                                          regex: pattern,
+                                          options: "i",
+                                        },
+                                      },
+                                    ],
+                                  },
+                                },
+                              },
+                            },
+                            0,
+                          ],
+                        },
+                        { $in: ["$_id", videoCourseIdsForSearch] },
+                      ],
+                    },
+                    4,
+                    5,
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const sortStage = { _searchRank: 1, [sortCol]: sortDir, _id: 1 };
+
+    const pipeline = [
+      { $match: matchQuery },
+      { $addFields: { _searchRank: rankExpr } },
+      { $sort: sortStage },
+      { $skip: skip },
+      { $limit: lim },
+      { $project: { _searchRank: 0 } },
+    ];
+
+    const ordered = await this.aggregate(pipeline);
+    const ids = ordered.map((d) => d._id);
+    if (!ids.length) {
+      courses = [];
+    } else {
+      const byId = await this.find({ _id: { $in: ids } })
+        .populate(courseCollaboratorPopulate)
+        .lean();
+      const map = new Map(byId.map((c) => [c._id.toString(), c]));
+      courses = ids.map((id) => map.get(id.toString())).filter(Boolean);
+    }
+  } else {
+    courses = await this.find(matchQuery)
+      .populate(courseCollaboratorPopulate)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(lim)
+      .lean();
+  }
 
   return {
     courses,
     pagination: {
-      currentPage: parseInt(page, 10),
-      pageSize: parseInt(limit, 10),
-      totalPages: Math.ceil(total / limit) || 0,
+      currentPage: pg,
+      pageSize: lim,
+      totalPages: Math.ceil(total / lim) || 0,
       totalCourses: total,
-      hasNextPage: page < Math.ceil(total / limit),
-      hasPrevPage: page > 1,
+      hasNextPage: pg < Math.ceil(total / lim),
+      hasPrevPage: pg > 1,
     },
   };
 };

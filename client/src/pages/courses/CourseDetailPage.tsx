@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowLeft,
@@ -29,6 +29,7 @@ import {
   type CourseVideoRow,
 } from "@/api/courseApi";
 import { fetchMyEnrollments, type EnrollmentRow } from "@/api/enrollmentApi";
+import { formatPriceNumber } from "@/lib/formatPrice";
 import { buildCourseThumbnailCandidates, buildVideoPosterUrls, getYoutubeEmbedUrl } from "@/lib/youtubeThumbnail";
 
 type DetailTab = "overview" | "videos" | "enrollments" | "ratings";
@@ -285,7 +286,7 @@ export default function CourseDetailPage() {
   const isLearner = Boolean(user && !isCollaborator);
 
   const [course, setCourse] = useState<Course | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => courseId !== "new");
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>("overview");
   const [playVideo, setPlayVideo] = useState<CourseVideoRow | null>(null);
@@ -295,7 +296,7 @@ export default function CourseDetailPage() {
   const [enrollErr, setEnrollErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!courseId) return;
+    if (!courseId || courseId === "new") return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -347,6 +348,10 @@ export default function CourseDetailPage() {
   }, [course, enrollRows]);
 
   const playEmbed = playVideo ? getYoutubeEmbedUrl(playVideo.videoUrl) : null;
+
+  if (courseId === "new") {
+    return <Navigate to={ROUTES.dashboard.courseNew} replace />;
+  }
 
   if (loading) {
     return (
@@ -552,10 +557,10 @@ export default function CourseDetailPage() {
                     <dt className="text-[var(--app-muted)]">Price</dt>
                     <dd className="text-right font-medium text-[var(--app-text)]">
                       {course.courseType === 2
-                        ? "Free"
+                        ? formatPriceNumber(0)
                         : course.price != null
-                          ? `$${Number(course.price).toFixed(2)}`
-                          : "Paid"}
+                          ? formatPriceNumber(course.price)
+                          : "—"}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-4">
@@ -815,7 +820,7 @@ export default function CourseDetailPage() {
           <Calendar className="h-4 w-4" aria-hidden />
           Last updated {formatShortDate(course.updatedAt)}
         </span>
-        <Link to={courseDetailPath(course._id)} className="font-mono text-xs text-[var(--app-muted)]" title="Course id">
+        <Link to={courseDetailPath(course._id)} className="font-nunito-sans text-xs text-[var(--app-muted)]" title="Course id">
           ID: {course._id}
         </Link>
       </div>
