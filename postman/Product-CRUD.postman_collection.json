@@ -1,0 +1,200 @@
+{
+  "info": {
+    "name": "Raag App — Product CRUD",
+    "description": "Standalone collection for **`/api/v1/product`**.\n\n### Auth\n- **GET** list/detail: any valid Bearer (learner or collaborator).\n- **POST / PUT / DELETE**: **learner JWT only** (`POST /api/v1/user/user-login`). Server sets **`userId`** from the token; body **`userId`** is ignored/stripped.\n\n### Variables\nSet **`baseUrl`**, **`access_token`**. Set **`category_id`** manually or run **Get All Categories** first (script saves **`category_id`**). **Add Product** / **Get All Products** scripts save **`product_id`**.\n\n### Response shape (each product)\n- **`userId`**: string (creator’s Mongo id)\n- **`user`**: public profile (`userName`, `email`, `role`, `roleName`, `profileImage`, …) or `null` if missing\n- **`category`**: populated `{ _id, name }` when present\n- **`isCreatedByMe`**: `true` if the current Bearer is the **same learner** who created the row; `false` for collaborators or other users\n\nBackend: `product.route.js` + `product.service.js`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "access_token", "value": "" },
+    { "key": "category_id", "value": "" },
+    { "key": "product_id", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Get All Categories (prerequisite)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const json = pm.response.json();",
+              "    if (json.categories && json.categories.length && json.categories[0]._id) {",
+              "        pm.collectionVariables.set('category_id', json.categories[0]._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/category?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "category"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" }
+          ]
+        },
+        "description": "Fills **`category_id`** for **Add Product**. Same Bearer as products."
+      }
+    },
+    {
+      "name": "Add Product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const json = pm.response.json();",
+              "    pm.test('Response has product with user, userId, isCreatedByMe', function () {",
+              "        pm.expect(json).to.have.property('product');",
+              "        const p = json.product;",
+              "        pm.expect(p).to.have.property('userId');",
+              "        pm.expect(p).to.have.property('user');",
+              "        pm.expect(p).to.have.property('isCreatedByMe');",
+              "        pm.expect(p.isCreatedByMe).to.eql(true);",
+              "    });",
+              "    if (json.product && json.product._id) {",
+              "        pm.collectionVariables.set('product_id', json.product._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Standalone Sample Product\",\n  \"description\": \"Created via Product CRUD collection.\",\n  \"price\": 499,\n  \"discountPrice\": 399,\n  \"category\": \"{{category_id}}\",\n  \"stock\": 5,\n  \"tags\": [\"demo\", \"postman\"],\n  \"isFeatured\": false,\n  \"isActive\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/product",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "product"]
+        },
+        "description": "**Learner JWT required.** Ensure **`{{category_id}}`** is set (run prerequisite request). Response **`product`**: **`user`**, **`userId`**, **`isCreatedByMe`: true** for creator."
+      }
+    },
+    {
+      "name": "Get All Products",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const json = pm.response.json();",
+              "    pm.test('List items include user, userId, isCreatedByMe', function () {",
+              "        pm.expect(json).to.have.property('products');",
+              "        if (json.products && json.products.length) {",
+              "            const p = json.products[0];",
+              "            pm.expect(p).to.have.property('userId');",
+              "            pm.expect(p).to.have.property('user');",
+              "            pm.expect(p).to.have.property('isCreatedByMe');",
+              "            pm.expect(typeof p.isCreatedByMe).to.eql('boolean');",
+              "        }",
+              "    });",
+              "    if (json.products && json.products.length && json.products[0]._id) {",
+              "        pm.collectionVariables.set('product_id', json.products[0]._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/product?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "product"],
+          "query": [
+            { "key": "page", "value": "1", "description": "Optional" },
+            { "key": "limit", "value": "10", "description": "Optional" },
+            { "key": "search", "value": "", "disabled": true, "description": "Optional search" }
+          ]
+        },
+        "description": "**GET /** — **`products[]`**: each has **`user`**, **`userId`**, **`category`**, **`isCreatedByMe`**."
+      }
+    },
+    {
+      "name": "Get Product by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const json = pm.response.json();",
+              "    pm.test('Single product has user, userId, isCreatedByMe', function () {",
+              "        pm.expect(json).to.have.property('product');",
+              "        const p = json.product;",
+              "        pm.expect(p).to.have.property('userId');",
+              "        pm.expect(p).to.have.property('user');",
+              "        pm.expect(p).to.have.property('isCreatedByMe');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/product/{{product_id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "product", "{{product_id}}"]
+        },
+        "description": "Set **`{{product_id}}`** from Add or Get All."
+      }
+    },
+    {
+      "name": "Update Product",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Standalone Sample Product (updated)\",\n  \"price\": 449,\n  \"description\": \"Updated via Postman.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/product/{{product_id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "product", "{{product_id}}"]
+        },
+        "description": "**Owner only.** Response **`product`** again includes **`user`**, **`userId`**, **`isCreatedByMe`**."
+      }
+    },
+    {
+      "name": "Delete Product",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/product/{{product_id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "product", "{{product_id}}"]
+        },
+        "description": "**Owner only.** **`product`** in body includes **`user`**, **`userId`**, **`isCreatedByMe`: true**."
+      }
+    }
+  ]
+}

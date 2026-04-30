@@ -40,6 +40,8 @@ const addProductSchema = {
     tags: stringArray.optional(),
     isFeatured: Joi.boolean().optional(),
     isActive: Joi.boolean().optional(),
+    /** Set only by server from auth */
+    userId: Joi.any().strip(),
   }),
 };
 
@@ -86,6 +88,8 @@ const updateProductSchema = {
     tags: stringArray.optional(),
     isFeatured: Joi.boolean().optional(),
     isActive: Joi.boolean().optional(),
+    /** Owner cannot transfer via API */
+    userId: Joi.any().strip(),
   }),
 };
 

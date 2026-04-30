@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Raag App API",
-    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `user_id` | Set after **Login** / **Social Login** (test script) — used for **Get Suggestions by User ID** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** (only when enrollment has `_id`) |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n| `category_id` | Set after **Add Category** or **Get All Categories** (test scripts); used for PUT/DELETE |\n\n---\n\n### Category CRUD (`/category`)\n\nAll routes require **Bearer**. **POST** body: **name** (3–50 chars, required), **description** (optional), **image** (optional URI). **GET** optional **page**, **limit** (defaults 1 and 10). **PUT /:id** accepts any of **name**, **description**, **image**, **isActive**. **DELETE /:id** removes the document.\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n- **GET /user/all** — any authenticated user (Bearer).\n\n---\n\n### Subscription & suggestion user payload\n\n- **subscription** / **suggestion** documents include **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No top-level duplicate `user` key.\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.\n\n**GET /enrollment?productIds=…** — Resolves **courses** by `identifierId` from the Course model; merges your enrollment when it exists. Catalog-only rows use `catalogOnly: true`, `isEnrolled: false` (no enrollment `_id`). Omit `productIds` for full list / RevenueCat mode when configured.",
+    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `user_id` | Set after **Login** / **Social Login** (test script) — used for **Get Suggestions by User ID** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** (only when enrollment has `_id`) |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n| `category_id` | Set after **Add Category** or **Get All Categories** (test scripts); used for PUT/DELETE |\n| `product_id` | Set after **Add Product** or **Get All Products** (tests); GET/PUT/DELETE by id |\n\n---\n\n### Category CRUD (`/category`)\n\nAll routes require **Bearer**. **POST** body: **name** (3–50 chars, required), **description** (optional), **image** (optional URI). **GET** optional **page**, **limit** (defaults 1 and 10). **PUT /:id** accepts any of **name**, **description**, **image**, **isActive**. **DELETE /:id** removes the document.\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n- **GET /user/all** — any authenticated user (Bearer).\n\n---\n\n### Subscription & suggestion user payload\n\n- **subscription** / **suggestion** documents include **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No top-level duplicate `user` key.\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.\n\n**GET /enrollment?productIds=…** — Resolves **courses** by `identifierId` from the Course model; merges your enrollment when it exists. Catalog-only rows use `catalogOnly: true`, `isEnrolled: false` (no enrollment `_id`). Omit `productIds` for full list / RevenueCat mode when configured.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -47,6 +47,10 @@
     },
     {
       "key": "category_id",
+      "value": ""
+    },
+    {
+      "key": "product_id",
       "value": ""
     }
   ],
@@ -441,34 +445,121 @@
     },
     {
       "name": "Product",
+      "description": "**Learner JWT only** for **POST** / **PUT** / **DELETE** (collaborator tokens get 403). **userId** is set on create from the token. Responses include **user** (public profile), string **userId**, **isCreatedByMe**, populated **category**.",
       "item": [
         {
           "name": "Add Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.test('product has user, userId, isCreatedByMe', function () {",
+                  "        pm.expect(json).to.have.property('product');",
+                  "        const p = json.product;",
+                  "        pm.expect(p).to.have.property('userId');",
+                  "        pm.expect(p).to.have.property('user');",
+                  "        pm.expect(p).to.have.property('isCreatedByMe');",
+                  "        pm.expect(p.isCreatedByMe).to.eql(true);",
+                  "    });",
+                  "    if (json.product && json.product._id) {",
+                  "        pm.collectionVariables.set('product_id', json.product._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Product Name\",\n  \"description\": \"Product description\",\n  \"price\": 999,\n  \"discountPrice\": 799,\n  \"category\": \"CATEGORY_ID_HERE\",\n  \"stock\": 10,\n  \"tags\": [\"tag1\"],\n  \"isFeatured\": true\n}"
+              "raw": "{\n  \"name\": \"Sample Product\",\n  \"description\": \"Product description\",\n  \"price\": 999,\n  \"discountPrice\": 799,\n  \"category\": \"{{category_id}}\",\n  \"stock\": 10,\n  \"tags\": [\"tag1\"],\n  \"isFeatured\": true\n}"
             },
-            "url": "{{baseUrl}}/api/v1/product",
-            "description": "Create product (auth required)"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/product",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "product"]
+            },
+            "description": "**POST /** — Bearer must be a **learner user** (`/user/user-login`). Server saves **userId**. Each **`product`** includes **`user`** (public profile), string **`userId`**, **`isCreatedByMe`** (true for creator). Replace **{{category_id}}** via Category → Get All or Add Category."
           }
         },
         {
           "name": "Get All Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.products && json.products.length) {",
+                  "        const p = json.products[0];",
+                  "        pm.test('first product has user, userId, isCreatedByMe', function () {",
+                  "            pm.expect(p).to.have.property('userId');",
+                  "            pm.expect(p).to.have.property('user');",
+                  "            pm.expect(p).to.have.property('isCreatedByMe');",
+                  "            pm.expect(typeof p.isCreatedByMe).to.eql('boolean');",
+                  "        });",
+                  "    }",
+                  "    if (json.products && json.products.length && json.products[0]._id) {",
+                  "        pm.collectionVariables.set('product_id', json.products[0]._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/product?page=1&limit=10",
-            "description": "Get all products with pagination"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/product?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "product"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"},
+                {"key": "search", "value": "", "disabled": true, "description": "Optional"}
+              ]
+            },
+            "description": "Each **`products[]`** row: **`user`** (creator public profile), string **`userId`**, **`category`**, **`isCreatedByMe`** (true if Bearer is the same learner who created it)."
           }
         },
         {
           "name": "Get Product by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.test('product has user, userId, isCreatedByMe', function () {",
+                  "        pm.expect(json).to.have.property('product');",
+                  "        const p = json.product;",
+                  "        pm.expect(p).to.have.property('userId');",
+                  "        pm.expect(p).to.have.property('user');",
+                  "        pm.expect(p).to.have.property('isCreatedByMe');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/product/:id",
-            "description": "Get single product"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/product/{{product_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "product", "{{product_id}}"]
+            },
+            "description": "Set **{{product_id}}** from Add / Get All. **`product`**: **`user`**, **`userId`**, **`category`**, **`isCreatedByMe`**."
           }
         },
         {
@@ -480,16 +571,24 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Updated Product\",\n  \"price\": 899\n}"
             },
-            "url": "{{baseUrl}}/api/v1/product/:id",
-            "description": "Update product"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/product/{{product_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "product", "{{product_id}}"]
+            },
+            "description": "**Owner only** (same **userId** as creator). Cannot change **userId** via body."
           }
         },
         {
           "name": "Delete Product",
           "request": {
             "method": "DELETE",
-            "url": "{{baseUrl}}/api/v1/product/:id",
-            "description": "Delete product"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/product/{{product_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "product", "{{product_id}}"]
+            },
+            "description": "**Owner only**."
           }
         }
       ]

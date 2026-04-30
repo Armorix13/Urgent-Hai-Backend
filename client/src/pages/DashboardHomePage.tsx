@@ -20,6 +20,7 @@ import {
   type DashboardAnalyticsResponse,
   type TrendPoint,
 } from "@/api/dashboardApi";
+import { brand } from "@/config/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES, courseDetailPath } from "@/routes/paths";
 
@@ -451,7 +452,7 @@ export default function DashboardHomePage() {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-muted)]">Overview</p>
                   <h2 className="mt-1 text-2xl font-bold tracking-tight text-[var(--app-text)]">Platform</h2>
-                  <p className="mt-1 text-sm text-[var(--app-muted)]">All non-deleted courses across Raag Vidyalaya.</p>
+                  <p className="mt-1 text-sm text-[var(--app-muted)]">All non-deleted courses across {brand.name}.</p>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

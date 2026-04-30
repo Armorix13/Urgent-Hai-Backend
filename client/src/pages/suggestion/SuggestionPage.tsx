@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@/lib/api";
 import { readLearnerUserIdFromAccessToken } from "@/lib/jwtPayload";
+import { brand } from "@/config/navigation";
 import { ROUTES } from "@/routes/paths";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
@@ -378,7 +379,7 @@ function SubmitSuggestionPanel({ onCreated }: { onCreated: () => void }) {
             id="suggestion-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What would make Raag Vidyalaya better for you?"
+            placeholder={`What would make ${brand.name} better for you?`}
             rows={5}
             maxLength={2000}
             className="w-full resize-y rounded-xl border bg-[var(--app-bg)] px-3 py-2.5 text-sm leading-relaxed text-[var(--app-text)] placeholder:text-[var(--app-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
@@ -662,7 +663,7 @@ export default function SuggestionPage() {
         />
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/90">Suggestions</p>
         <h2 className="mt-2 max-w-2xl text-2xl font-bold tracking-tight sm:text-3xl">
-          Shape the future of Raag Vidyalaya
+          Shape the future of {brand.name}
         </h2>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-teal-50/95">
           Browse ideas from learners and teachers. Search the board, scan live stats, and page through

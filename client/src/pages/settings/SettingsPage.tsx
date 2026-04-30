@@ -11,6 +11,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { ApiError, uploadImageFile } from "@/lib/api";
 import { publicUploadUrl } from "@/lib/env";
+import { brand } from "@/config/navigation";
 import { ROUTES } from "@/routes/paths";
 
 type TabId = "profile" | "security";
@@ -277,7 +278,7 @@ export default function SettingsPage() {
           aria-hidden
         />
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/85">Settings</p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Manage your Raag Vidyalaya profile</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Manage your {brand.name} profile</h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-blue-100/95">
           Update how you appear to learners — similar to a Google Account profile: photo, cover, contact
           info, and password in one place.
