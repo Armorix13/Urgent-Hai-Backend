@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Raag App — Product CRUD",
-    "description": "Standalone collection for **`/api/v1/product`**.\n\n### Auth\n- **GET** list/detail: any valid Bearer (learner or collaborator).\n- **POST / PUT / DELETE**: **learner JWT only** (`POST /api/v1/user/user-login`). Server sets **`userId`** from the token; body **`userId`** is ignored/stripped.\n\n### Variables\nSet **`baseUrl`**, **`access_token`**. Set **`category_id`** manually or run **Get All Categories** first (script saves **`category_id`**). **Add Product** / **Get All Products** scripts save **`product_id`**.\n\n### Response shape (each product)\n- **`userId`**: string (creator’s Mongo id)\n- **`user`**: public profile (`userName`, `email`, `role`, `roleName`, `profileImage`, …) or `null` if missing\n- **`category`**: populated `{ _id, name }` when present\n- **`isCreatedByMe`**: `true` if the current Bearer is the **same learner** who created the row; `false` for collaborators or other users\n\nBackend: `product.route.js` + `product.service.js`.",
+    "description": "Standalone collection for **`/api/v1/product`**.\n\n### Auth\n- **GET** list/detail: any valid Bearer (learner or collaborator).\n- **POST / PUT / DELETE**: **learner JWT only** (`POST /api/v1/user/user-login`). Server sets **`userId`** from the token; body **`userId`** is ignored/stripped.\n\n### Variables\nSet **`baseUrl`**, **`access_token`**. Set **`category_id`** manually or run **Get All Categories** first (script saves **`category_id`**). **Add Product** / **Get All Products** scripts save **`product_id`**.\n\n### Query (GET list)\n- **`categoryId`** (optional) — filter by **Category** `_id` (same as **`{{category_id}}`**).\n- **`search`**, **`page`**, **`limit`** — optional.\n\n### Response shape (each product)\n- **`userId`**: string (creator’s Mongo id)\n- **`user`**: public profile (`userName`, `email`, `role`, `roleName`, `profileImage`, …) or `null` if missing\n- **`category`**: populated `{ _id, name }` when present\n- **`isCreatedByMe`**: `true` if the current Bearer is the **same learner** who created the row; `false` for collaborators or other users\n\nBackend: `product.route.js` + `product.service.js`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -127,10 +127,16 @@
           "query": [
             { "key": "page", "value": "1", "description": "Optional" },
             { "key": "limit", "value": "10", "description": "Optional" },
+            {
+              "key": "categoryId",
+              "value": "{{category_id}}",
+              "description": "Optional — filter by category ObjectId",
+              "disabled": true
+            },
             { "key": "search", "value": "", "disabled": true, "description": "Optional search" }
           ]
         },
-        "description": "**GET /** — **`products[]`**: each has **`user`**, **`userId`**, **`category`**, **`isCreatedByMe`**."
+        "description": "**GET /** — **`products[]`**: each has **`user`**, **`userId`**, **`category`**, **`isCreatedByMe`**. Optional **`categoryId`** query (enable after **`category_id`** is set)."
       }
     },
     {

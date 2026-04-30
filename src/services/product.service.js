@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Product from "../models/product.model.js";
 import Category from "../models/category.model.js";
 import {
@@ -118,7 +119,13 @@ const getAllProducts = async (req) => {
       ? String(rawSearch).trim().slice(0, MAX_SEARCH_LEN)
       : "";
 
-  let matchQuery = {};
+  const categoryId =
+    req.query.categoryId != null && String(req.query.categoryId).trim() !== ""
+      ? String(req.query.categoryId).trim()
+      : null;
+  const categoryMatch = categoryId ? { category: new mongoose.Types.ObjectId(categoryId) } : null;
+
+  let searchMatch = null;
   let searchPattern = "";
   let categoryIdsForSearch = [];
 
@@ -131,7 +138,7 @@ const getAllProducts = async (req) => {
       .select("_id")
       .lean();
     categoryIdsForSearch = cats.map((c) => c._id);
-    matchQuery = {
+    searchMatch = {
       $or: [
         { name: re },
         { description: re },
@@ -140,6 +147,15 @@ const getAllProducts = async (req) => {
         ...(categoryIdsForSearch.length ? [{ category: { $in: categoryIdsForSearch } }] : []),
       ],
     };
+  }
+
+  let matchQuery = {};
+  if (searchMatch && categoryMatch) {
+    matchQuery = { $and: [searchMatch, categoryMatch] };
+  } else if (searchMatch) {
+    matchQuery = searchMatch;
+  } else if (categoryMatch) {
+    matchQuery = categoryMatch;
   }
 
   const total = await Product.countDocuments(matchQuery);

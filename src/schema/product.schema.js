@@ -58,6 +58,21 @@ const getAllProductsSchema = {
     search: Joi.string().trim().max(200).allow("").optional().messages({
       "string.max": "Search must be at most 200 characters.",
     }),
+    /** Optional: filter products in this category (Mongo ObjectId). Omit or empty = all categories. */
+    categoryId: Joi.string()
+      .trim()
+      .optional()
+      .allow("")
+      .custom((value, helpers) => {
+        if (value === undefined || value === null || value === "") return undefined;
+        if (!mongoose.Types.ObjectId.isValid(value)) {
+          return helpers.error("any.invalid");
+        }
+        return value;
+      })
+      .messages({
+        "any.invalid": "Invalid categoryId.",
+      }),
   }),
 };
 

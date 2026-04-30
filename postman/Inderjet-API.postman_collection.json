@@ -528,10 +528,16 @@
               "query": [
                 {"key": "page", "value": "1"},
                 {"key": "limit", "value": "10"},
-                {"key": "search", "value": "", "disabled": true, "description": "Optional"}
+                {
+                  "key": "categoryId",
+                  "value": "{{category_id}}",
+                  "description": "Optional — Mongo **Category** `_id`; omit or disable to list all categories.",
+                  "disabled": true
+                },
+                {"key": "search", "value": "", "disabled": true, "description": "Optional text search"}
               ]
             },
-            "description": "Each **`products[]`** row: **`user`** (creator public profile), string **`userId`**, **`category`**, **`isCreatedByMe`** (true if Bearer is the same learner who created it)."
+            "description": "Each **`products[]`** row: **`user`**, **`userId`**, **`category`**, **`isCreatedByMe`**. Optional query **`categoryId`** (ObjectId) filters to that category; combine with **`search`**. Enable **`categoryId`** in Params after **`{{category_id}}`** is set."
           }
         },
         {
