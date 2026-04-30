@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Raag App API",
-    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `user_id` | Set after **Login** / **Social Login** (test script) — used for **Get Suggestions by User ID** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** (only when enrollment has `_id`) |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n- **GET /user/all** — any authenticated user (Bearer).\n\n---\n\n### Subscription & suggestion user payload\n\n- **subscription** / **suggestion** documents include **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No top-level duplicate `user` key.\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.\n\n**GET /enrollment?productIds=…** — Resolves **courses** by `identifierId` from the Course model; merges your enrollment when it exists. Catalog-only rows use `catalogOnly: true`, `isEnrolled: false` (no enrollment `_id`). Omit `productIds` for full list / RevenueCat mode when configured.",
+    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `user_id` | Set after **Login** / **Social Login** (test script) — used for **Get Suggestions by User ID** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** (only when enrollment has `_id`) |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n| `category_id` | Set after **Add Category** or **Get All Categories** (test scripts); used for PUT/DELETE |\n\n---\n\n### Category CRUD (`/category`)\n\nAll routes require **Bearer**. **POST** body: **name** (3–50 chars, required), **description** (optional), **image** (optional URI). **GET** optional **page**, **limit** (defaults 1 and 10). **PUT /:id** accepts any of **name**, **description**, **image**, **isActive**. **DELETE /:id** removes the document.\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n- **GET /user/all** — any authenticated user (Bearer).\n\n---\n\n### Subscription & suggestion user payload\n\n- **subscription** / **suggestion** documents include **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No top-level duplicate `user` key.\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.\n\n**GET /enrollment?productIds=…** — Resolves **courses** by `identifierId` from the Course model; merges your enrollment when it exists. Catalog-only rows use `catalogOnly: true`, `isEnrolled: false` (no enrollment `_id`). Omit `productIds` for full list / RevenueCat mode when configured.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -43,6 +43,10 @@
     },
     {
       "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "category_id",
       "value": ""
     }
   ],
@@ -304,26 +308,104 @@
     },
     {
       "name": "Category",
+      "description": "CRUD for **Category** model (`name`, `description`, `image`, `isActive`). Uses collection **Bearer** auth.",
       "item": [
         {
           "name": "Add Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.category && json.category._id) {",
+                  "        pm.collectionVariables.set('category_id', json.category._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Music\",\n  \"description\": \"Music category\",\n  \"image\": \"https://example.com/image.jpg\"\n}"
+              "raw": "{\n  \"name\": \"Classical Vocal\",\n  \"description\": \"Categories for classical vocal courses.\",\n  \"image\": \"https://example.com/category/classical-vocal.jpg\"\n}"
             },
-            "url": "{{baseUrl}}/api/v1/category",
-            "description": "Create category (auth required)"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/category",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "category"]
+            },
+            "description": "**POST /** — Validation: **name** string 3–50 chars (required); **description** optional; **image** optional valid URI. Saves **category_id** on 201. Duplicate **name** returns error from service."
+          }
+        },
+        {
+          "name": "Add Category (name only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.category && json.category._id) {",
+                  "        pm.collectionVariables.set('category_id', json.category._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Light Music\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/category",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "category"]
+            },
+            "description": "Minimal create: only **name**. Use a unique name if you already ran **Add Category**."
           }
         },
         {
           "name": "Get All Categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.categories && json.categories.length && json.categories[0]._id) {",
+                  "        pm.collectionVariables.set('category_id', json.categories[0]._id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/category?page=1&limit=10",
-            "description": "Get all categories with pagination"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/category?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "category"],
+              "query": [
+                {"key": "page", "value": "1", "description": "Optional; default 1"},
+                {"key": "limit", "value": "10", "description": "Optional; default 10"}
+              ]
+            },
+            "description": "**GET /** — Paginated list, newest first. Response: **categories**, **total**, **page**, **totalPages**. Test script sets **category_id** from the first row."
           }
         },
         {
@@ -333,18 +415,26 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Category\",\n  \"description\": \"Updated\",\n  \"isActive\": true\n}"
+              "raw": "{\n  \"name\": \"Classical Vocal (updated)\",\n  \"description\": \"Updated description\",\n  \"image\": \"https://example.com/category/classical-vocal-v2.jpg\",\n  \"isActive\": true\n}"
             },
-            "url": "{{baseUrl}}/api/v1/category/:id",
-            "description": "Update category"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/category/{{category_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "category", "{{category_id}}"]
+            },
+            "description": "**PUT /:id** — **id** must be a valid MongoDB ObjectId. Send any subset of **name**, **description**, **image** (URI), **isActive**. Set **{{category_id}}** via Add or Get All first."
           }
         },
         {
           "name": "Delete Category",
           "request": {
             "method": "DELETE",
-            "url": "{{baseUrl}}/api/v1/category/:id",
-            "description": "Delete category"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/category/{{category_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "category", "{{category_id}}"]
+            },
+            "description": "**DELETE /:id** — Removes the category document. Returns deleted snapshot in **category**."
           }
         }
       ]

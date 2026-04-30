@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "Raag App — Category CRUD",
+    "description": "Standalone collection for **`/api/v1/category`** (get all, add, update, delete). All routes require Bearer.\n\nSet **baseUrl** (e.g. `http://localhost:3000`) and **access_token** (JWT from `/api/v1/user/user-login` in the main **Raag App API** collection, or paste manually). Test scripts populate **category_id** after Create / Get All.\n\nBackend: `category.route.js` — **POST /**, **GET /**, **PUT /:id**, **DELETE /:id**.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "access_token", "value": "" },
+    { "key": "category_id", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Get All Categories",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const json = pm.response.json();",
+              "    if (json.categories && json.categories.length && json.categories[0]._id) {",
+              "        pm.collectionVariables.set('category_id', json.categories[0]._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/category?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "category"],
+          "query": [
+            { "key": "page", "value": "1", "description": "Optional" },
+            { "key": "limit", "value": "10", "description": "Optional" }
+          ]
+        },
+        "description": "GET **/** — Paginated categories. Saves **category_id** from first row (Tests)."
+      }
+    },
+    {
+      "name": "Add Category",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const json = pm.response.json();",
+              "    if (json.category && json.category._id) {",
+              "        pm.collectionVariables.set('category_id', json.category._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Classical Vocal\",\n  \"description\": \"Categories for classical vocal courses.\",\n  \"image\": \"https://example.com/category/classical-vocal.jpg\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/category",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "category"]
+        },
+        "description": "POST **/** — Body: **name** (required, 3–50 chars), optional **description**, **image** (URI)."
+      }
+    },
+    {
+      "name": "Update Category",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Classical Vocal (updated)\",\n  \"description\": \"Updated description\",\n  \"image\": \"https://example.com/category/classical-vocal-v2.jpg\",\n  \"isActive\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/category/{{category_id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "category", "{{category_id}}"]
+        },
+        "description": "PUT **/:id** — Set **category_id** first (Get All or Add)."
+      }
+    },
+    {
+      "name": "Delete Category",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/category/{{category_id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "category", "{{category_id}}"]
+        },
+        "description": "DELETE **/:id** — Permanent remove."
+      }
+    }
+  ]
+}
