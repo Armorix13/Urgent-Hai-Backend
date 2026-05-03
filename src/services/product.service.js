@@ -149,13 +149,33 @@ const getAllProducts = async (req) => {
     };
   }
 
+  const onlyMyProducts =
+    req.query.onlyMyProducts === true ||
+    req.query.onlyMyProducts === 1 ||
+    String(req.query.onlyMyProducts ?? "")
+      .trim()
+      .toLowerCase() === "true";
+
+  let myProductsMatch = null;
+  if (onlyMyProducts) {
+    if (req.authKind === "user" && req.userId) {
+      myProductsMatch = { userId: new mongoose.Types.ObjectId(req.userId) };
+    } else {
+      /** Learner JWT required for “mine”; collaborators / missing user → empty list. */
+      myProductsMatch = { _id: { $in: [] } };
+    }
+  }
+
+  const matchClauses = [];
+  if (searchMatch) matchClauses.push(searchMatch);
+  if (categoryMatch) matchClauses.push(categoryMatch);
+  if (myProductsMatch) matchClauses.push(myProductsMatch);
+
   let matchQuery = {};
-  if (searchMatch && categoryMatch) {
-    matchQuery = { $and: [searchMatch, categoryMatch] };
-  } else if (searchMatch) {
-    matchQuery = searchMatch;
-  } else if (categoryMatch) {
-    matchQuery = categoryMatch;
+  if (matchClauses.length === 1) {
+    matchQuery = matchClauses[0];
+  } else if (matchClauses.length > 1) {
+    matchQuery = { $and: matchClauses };
   }
 
   const total = await Product.countDocuments(matchQuery);

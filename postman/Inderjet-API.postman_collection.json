@@ -534,10 +534,16 @@
                   "description": "Optional — Mongo **Category** `_id`; omit or disable to list all categories.",
                   "disabled": true
                 },
+                {
+                  "key": "onlyMyProducts",
+                  "value": "true",
+                  "description": "Optional — learner JWT only: list only products you created (`userId` match). Collaborator/other → empty list.",
+                  "disabled": true
+                },
                 {"key": "search", "value": "", "disabled": true, "description": "Optional text search"}
               ]
             },
-            "description": "Each **`products[]`** row: **`user`**, **`userId`**, **`category`**, **`isCreatedByMe`**. Optional query **`categoryId`** (ObjectId) filters to that category; combine with **`search`**. Enable **`categoryId`** in Params after **`{{category_id}}`** is set."
+            "description": "Each **`products[]`** row: **`user`**, **`userId`**, **`category`**, **`isCreatedByMe`**. Optional **`categoryId`**, **`onlyMyProducts`** (`true` = my products for learner), **`search`**. Combine filters as needed."
           }
         },
         {

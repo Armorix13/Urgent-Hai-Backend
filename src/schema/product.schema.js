@@ -73,6 +73,14 @@ const getAllProductsSchema = {
       .messages({
         "any.invalid": "Invalid categoryId.",
       }),
+    /** When true, list only products created by the authenticated learner (`userId` from JWT). Ignored for collaborators. */
+    onlyMyProducts: Joi.boolean()
+      .truthy("true", "1", "yes", "on")
+      .falsy("false", "0", "no", "off", "")
+      .optional()
+      .messages({
+        "boolean.base": "onlyMyProducts must be a boolean or true/false string.",
+      }),
   }),
 };
 
