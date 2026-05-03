@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Raag App API",
-    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `user_id` | Set after **Login** / **Social Login** (test script) — used for **Get Suggestions by User ID** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** (only when enrollment has `_id`) |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n| `category_id` | Set after **Add Category** or **Get All Categories** (test scripts); used for PUT/DELETE |\n| `product_id` | Set after **Add Product** or **Get All Products** (tests); GET/PUT/DELETE by id |\n| `course_video_bookmark_id` | Set after **Get my bookmarks** or **Add bookmark** (Course video bookmarks) |\n\n---\n\n### Category CRUD (`/category`)\n\nAll routes require **Bearer**. **POST** body: **name** (3–50 chars, required), **description** (optional), **image** (optional URI). **GET** optional **page**, **limit** (defaults 1 and 10). **PUT /:id** accepts any of **name**, **description**, **image**, **isActive**. **DELETE /:id** removes the document.\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n- **GET /user/all** — any authenticated user (Bearer).\n\n---\n\n### Subscription & suggestion user payload\n\n- **subscription** / **suggestion** documents include **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No top-level duplicate `user` key.\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Course video bookmarks (`/course-video-bookmarks`)\n\n- **Learner JWT only** (collaborator → 403).\n- **GET /** — My bookmarks: **`bookmarks`**, **`total`**, **`page`**, **`totalPages`** (each row: **`courseVideo`**, **`course`**, **`note`**, **`userId`**).\n- **POST /** — **`courseVideoId`** (required), **`note`** optional. Same video again → **200** + **`alreadyBookmarked`: true**.\n- **GET / PUT / DELETE /:id** — Owner only. **PUT** body requires **`note`**.\n\nFolder: **Course video bookmarks**. Standalone file: **`CourseVideoBookmarks.postman_collection.json`**.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.\n\n**GET /enrollment?productIds=…** — Resolves **courses** by `identifierId` from the Course model; merges your enrollment when it exists. Catalog-only rows use `catalogOnly: true`, `isEnrolled: false` (no enrollment `_id`). Omit `productIds` for full list / RevenueCat mode when configured.",
+    "description": "## Overview\n\nFull REST collection for the Raag App backend (`/api/v1`). Import **Inderjet Local** environment and set **baseUrl** if needed.\n\n---\n\n### Collection variables\n\n| Variable | Purpose |\n|----------|---------|\n| `baseUrl` | e.g. `http://localhost:3000` |\n| `access_token` | Set automatically after **Login** or **Social Login** |\n| `user_id` | Set after **Login** / **Social Login** (test script) — used for **Get Suggestions by User ID** |\n| `course_id` | Set after **Create Course** (test script) or paste a MongoDB id |\n| `course_video_id` | Set after **Add Course Video** (test script) |\n| `enrollment_id` | Set after **Enroll** or **Get My Enrollments** (only when enrollment has `_id`) |\n| `drive_file_id` | Set after **Google Drive Upload** |\n| `plan_id` | Optional: paste from **Get All Plans** for subscription flows |\n| `collaborator_id` | Set from **Get Collaborator by ID** or **Get All Collaborators** (test scripts) |\n| `category_id` | Set after **Add Category** or **Get All Categories** (test scripts); used for PUT/DELETE |\n| `product_id` | Set after **Add Product** or **Get All Products** (tests); GET/PUT/DELETE by id |\n| `course_video_bookmark_id` | Set after **Get my bookmarks** or **Add bookmark** (Course video bookmarks) |\n\n---\n\n### Category CRUD (`/category`)\n\nAll routes require **Bearer**. **POST** body: **name** (3–50 chars, required), **description** (optional), **image** (optional URI). **GET** optional **page**, **limit** (defaults 1 and 10). **PUT /:id** accepts any of **name**, **description**, **image**, **isActive**. **DELETE /:id** removes the document.\n\n---\n\n### Auth\n\n- **Bearer** is configured at collection level (`{{access_token}}`).\n- Requests marked **noauth** override it (register, login, public GETs).\n- **GET /user/all** — any authenticated user (Bearer).\n\n---\n\n### Subscription & suggestion user payload\n\n- **subscription** / **suggestion** documents include **`userId`** (string) and nested **`user`** (public profile: `userName`, `email`, `role`, `roleName`, `genderName`, `deviceTypeName`, …). No top-level duplicate `user` key.\n\n---\n\n### Courses & videos\n\n- **GET /course** — Optional Bearer: adds `isEnrolled` + `myRating` on each course. Response: `courses`, `pagination` (`currentPage`, `pageSize`, `totalPages`, …), `totalVideosOnPage`.\n- **courseContent** — Embedded lessons on the Course document.\n- **videos** — Stored in **CourseVideo**; list/detail merge them as `videos`. On **POST/PUT /course**, include a **`videos`** array to replace all CourseVideo rows for that course (omit `videos` on PUT to leave them unchanged).\n- **courseType:** `1` = paid (needs **price**), `2` = free.\n\n---\n\n### Course video bookmarks (`/course-video-bookmarks`)\n\n- **Learner JWT only** (collaborator → 403).\n- **GET /** — My bookmarks: **`bookmarks`**, **`total`**, **`page`**, **`totalPages`** (each row: **`title`**, **`videoUrl`**, **`description`**, **`userId`**).\n- **POST /** — **`title`**, **`videoUrl`**, optional **`description`**; **`userId`** from JWT.\n- **DELETE /:id** — Remove one bookmark (owner only).\n\nFolder: **Course video bookmarks**. Standalone: **`CourseVideoBookmarks.postman_collection.json`**.\n\n---\n\n### Enrollment & rating\n\n`/enrollment/*` and `/rating/*` require Bearer token.\n\n**GET /enrollment?productIds=…** — Resolves **courses** by `identifierId` from the Course model; merges your enrollment when it exists. Catalog-only rows use `catalogOnly: true`, `isEnrolled: false` (no enrollment `_id`). Omit `productIds` for full list / RevenueCat mode when configured.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -1567,7 +1567,7 @@
     },
     {
       "name": "Course video bookmarks",
-      "description": "**Learner JWT only** (`/user/user-login`). Base path **`/api/v1/course-video-bookmarks`**. Each item includes **`courseVideo`** (normalized URLs), **`course`** summary, **`note`**, **`userId`**. **POST** duplicate same video → **200** + **`alreadyBookmarked`: true**.",
+      "description": "**Learner JWT only**. **`/api/v1/course-video-bookmarks`** — **GET /** list, **POST /** add (`title`, `videoUrl`, optional `description`; `userId` from token), **DELETE /:id** remove.",
       "item": [
         {
           "name": "Get my bookmarks",
@@ -1598,17 +1598,17 @@
                 {"key": "limit", "value": "20"}
               ]
             },
-            "description": "**GET /** — Paginated **`bookmarks`** for the authenticated user (newest **`updatedAt`** first)."
+            "description": "**GET /** — Paginated **`bookmarks`**: each has **`title`**, **`videoUrl`**, **`description`**, **`userId`**, timestamps."
           }
         },
         {
-          "name": "Add bookmark (course video)",
+          "name": "Add bookmark",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "if (pm.response.code === 201) {",
                   "    const j = pm.response.json();",
                   "    if (j.bookmark && j.bookmark._id) {",
                   "        pm.collectionVariables.set('course_video_bookmark_id', j.bookmark._id);",
@@ -1624,43 +1624,14 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"courseVideoId\": \"{{course_video_id}}\",\n  \"note\": \"Watch later\"\n}"
+              "raw": "{\n  \"title\": \"My saved lesson\",\n  \"videoUrl\": \"https://example.com/video.mp4\",\n  \"description\": \"Optional notes about this bookmark\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/course-video-bookmarks",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "course-video-bookmarks"]
             },
-            "description": "**POST /** — Body **`courseVideoId`** (Mongo **CourseVideo** `_id`). Set **`{{course_video_id}}`** from **Course Video → Get by course** or **Add Course Video**. Optional **`note`**."
-          }
-        },
-        {
-          "name": "Get bookmark by ID",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/course-video-bookmarks/{{course_video_bookmark_id}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "course-video-bookmarks", "{{course_video_bookmark_id}}"]
-            },
-            "description": "Must belong to the current user."
-          }
-        },
-        {
-          "name": "Update bookmark note",
-          "request": {
-            "method": "PUT",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"note\": \"Important — review before exam\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/course-video-bookmarks/{{course_video_bookmark_id}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "course-video-bookmarks", "{{course_video_bookmark_id}}"]
-            },
-            "description": "**PUT /:id** — Body **`note`** (required, can be empty string)."
+            "description": "**POST /** — **`title`** and **`videoUrl`** required; **`description`** optional. **`userId`** is set from the Bearer (do not send `userId` in body)."
           }
         },
         {
@@ -1672,7 +1643,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "course-video-bookmarks", "{{course_video_bookmark_id}}"]
             },
-            "description": "**DELETE /:id** — Removes this user’s bookmark row only."
+            "description": "**DELETE /:id** — Removes this user’s bookmark only. Set **`{{course_video_bookmark_id}}`** from **Get my bookmarks** or **Add bookmark**."
           }
         }
       ]

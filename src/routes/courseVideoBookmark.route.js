@@ -20,20 +20,6 @@ courseVideoBookmarkRoute.post(
   courseVideoBookmarkController.addBookmark
 );
 
-courseVideoBookmarkRoute.get(
-  "/:id",
-  authenticate,
-  validate(courseVideoBookmarkValidationSchemas.bookmarkIdParamSchema),
-  courseVideoBookmarkController.getBookmarkById
-);
-
-courseVideoBookmarkRoute.put(
-  "/:id",
-  authenticate,
-  validate(courseVideoBookmarkValidationSchemas.updateBookmarkSchema),
-  courseVideoBookmarkController.updateBookmark
-);
-
 courseVideoBookmarkRoute.delete(
   "/:id",
   authenticate,

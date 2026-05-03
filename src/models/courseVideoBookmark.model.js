@@ -8,23 +8,28 @@ const courseVideoBookmarkSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    courseVideoId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "CourseVideo",
+    title: {
+      type: String,
       required: true,
-      index: true,
+      trim: true,
+      maxlength: 300,
     },
-    note: {
+    videoUrl: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 2000,
+    },
+    description: {
       type: String,
       trim: true,
       default: "",
-      maxlength: 500,
+      maxlength: 5000,
     },
   },
   { timestamps: true }
 );
 
-courseVideoBookmarkSchema.index({ userId: 1, courseVideoId: 1 }, { unique: true });
 courseVideoBookmarkSchema.index({ userId: 1, updatedAt: -1 });
 
 const CourseVideoBookmark = mongoose.model("CourseVideoBookmark", courseVideoBookmarkSchema);

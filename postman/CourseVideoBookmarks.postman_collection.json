@@ -1,14 +1,12 @@
 {
   "info": {
     "name": "Raag App — Course video bookmarks",
-    "description": "Learner-only **`/api/v1/course-video-bookmarks`** CRUD.\n\n### Variables\n- **`baseUrl`**, **`access_token`** (user **Login** from main collection)\n- **`course_id`** — paste a real course `_id`, or use **Course** requests in the main collection\n- **`course_video_id`** — filled by **Get videos by course** (prerequisite), or paste a **CourseVideo** `_id`\n- **`course_video_bookmark_id`** — filled by **Get my bookmarks** or **Add bookmark**\n\n### Endpoints\n| Method | Path | |\n|--------|------|---|\n| GET | `/api/v1/course-video-bookmarks` | My bookmarks (paginated) |\n| POST | `/api/v1/course-video-bookmarks` | Add (`courseVideoId`, optional `note`) |\n| GET | `/api/v1/course-video-bookmarks/:id` | One bookmark |\n| PUT | `/api/v1/course-video-bookmarks/:id` | Update `note` |\n| DELETE | `/api/v1/course-video-bookmarks/:id` | Remove |\n\nDuplicate same video → **200** + **`alreadyBookmarked`: true**. Each item includes **`courseVideo`**, **`course`**, **`userId`**, **`note`**.",
+    "description": "Learner-only **`/api/v1/course-video-bookmarks`** (three endpoints).\n\n| Method | Path | Body / query |\n|--------|------|----------------|\n| **GET** | `/` | `page`, `limit` (optional) |\n| **POST** | `/` | **`title`**, **`videoUrl`** (required), **`description`** optional — **`userId`** from JWT |\n| **DELETE** | `/:id` | — |\n\nSet **`baseUrl`**, **`access_token`** (user login). **`course_video_bookmark_id`** is set by tests after list or add.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
     { "key": "access_token", "value": "" },
-    { "key": "course_id", "value": "" },
-    { "key": "course_video_id", "value": "" },
     { "key": "course_video_bookmark_id", "value": "" }
   ],
   "auth": {
@@ -16,34 +14,6 @@
     "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
   },
   "item": [
-    {
-      "name": "Prerequisite · Get videos by course",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "if (pm.response.code === 200) {",
-              "    const j = pm.response.json();",
-              "    const v = j.videos && j.videos[0];",
-              "    if (v && v._id) pm.collectionVariables.set('course_video_id', v._id);",
-              "}"
-            ],
-            "type": "text/javascript"
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/course-video/course/{{course_id}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "course-video", "course", "{{course_id}}"]
-        },
-        "description": "Sets **`course_video_id`** from the first video. Set **`{{course_id}}`** first (Mongo **Course** `_id`). Optional Bearer (same token is fine)."
-      }
-    },
     {
       "name": "Get my bookmarks",
       "event": [
@@ -72,8 +42,7 @@
             { "key": "page", "value": "1" },
             { "key": "limit", "value": "20" }
           ]
-        },
-        "description": "**GET /** — Paginated list for the logged-in learner."
+        }
       }
     },
     {
@@ -83,7 +52,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "if (pm.response.code === 201 || pm.response.code === 200) {",
+              "if (pm.response.code === 201) {",
               "    const j = pm.response.json();",
               "    if (j.bookmark && j.bookmark._id) {",
               "        pm.collectionVariables.set('course_video_bookmark_id', j.bookmark._id);",
@@ -99,43 +68,13 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"courseVideoId\": \"{{course_video_id}}\",\n  \"note\": \"Watch later\"\n}"
+          "raw": "{\n  \"title\": \"Saved lesson\",\n  \"videoUrl\": \"https://example.com/watch.mp4\",\n  \"description\": \"Optional\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/course-video-bookmarks",
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "course-video-bookmarks"]
-        },
-        "description": "**POST /** — Requires **`{{course_video_id}}`** (run prerequisite or paste)."
-      }
-    },
-    {
-      "name": "Get bookmark by ID",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/course-video-bookmarks/{{course_video_bookmark_id}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "course-video-bookmarks", "{{course_video_bookmark_id}}"]
-        },
-        "description": "**GET /:id** — Must be your bookmark."
-      }
-    },
-    {
-      "name": "Update bookmark",
-      "request": {
-        "method": "PUT",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"note\": \"Updated note\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/course-video-bookmarks/{{course_video_bookmark_id}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "course-video-bookmarks", "{{course_video_bookmark_id}}"]
-        },
-        "description": "**PUT /:id** — Body **`note`** required (can be empty string)."
+        }
       }
     },
     {
@@ -146,8 +85,7 @@
           "raw": "{{baseUrl}}/api/v1/course-video-bookmarks/{{course_video_bookmark_id}}",
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "course-video-bookmarks", "{{course_video_bookmark_id}}"]
-        },
-        "description": "**DELETE /:id**"
+        }
       }
     }
   ]

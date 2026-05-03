@@ -9,14 +9,22 @@ const objectId = Joi.string().custom((value, helpers) => {
 }, "ObjectId validation");
 
 const addBookmarkSchema = {
-  body: Joi.object().keys({
-    courseVideoId: objectId.required().messages({
-      "any.required": "Course video ID is required.",
-      "any.invalid": "Invalid course video ID.",
-    }),
-    note: Joi.string().trim().max(500).allow("").optional(),
-    userId: Joi.any().strip(),
-  }),
+  body: Joi.object()
+    .keys({
+      title: Joi.string().trim().min(1).max(300).required().messages({
+        "any.required": "title is required.",
+        "string.empty": "title cannot be empty.",
+      }),
+      videoUrl: Joi.string().trim().min(1).max(2000).required().messages({
+        "any.required": "videoUrl is required.",
+        "string.empty": "videoUrl cannot be empty.",
+      }),
+      description: Joi.string().trim().max(5000).allow("").optional(),
+      userId: Joi.any().strip(),
+      courseVideoId: Joi.any().strip(),
+      note: Joi.any().strip(),
+    })
+    .options({ stripUnknown: true }),
 };
 
 const getMyBookmarksSchema = {
@@ -26,7 +34,7 @@ const getMyBookmarksSchema = {
   }),
 };
 
-const bookmarkIdParamSchema = {
+const deleteBookmarkSchema = {
   params: Joi.object().keys({
     id: objectId.required().messages({
       "any.required": "Bookmark ID is required.",
@@ -34,32 +42,10 @@ const bookmarkIdParamSchema = {
     }),
   }),
 };
-
-const updateBookmarkSchema = {
-  params: Joi.object().keys({
-    id: objectId.required().messages({
-      "any.required": "Bookmark ID is required.",
-      "any.invalid": "Invalid bookmark ID.",
-    }),
-  }),
-  body: Joi.object()
-    .keys({
-      note: Joi.string().trim().max(500).allow("").required().messages({
-        "any.required": "note is required (can be empty string).",
-      }),
-      courseVideoId: Joi.any().strip(),
-      userId: Joi.any().strip(),
-    })
-    .required(),
-};
-
-const deleteBookmarkSchema = bookmarkIdParamSchema;
 
 const courseVideoBookmarkValidationSchemas = {
   addBookmarkSchema,
   getMyBookmarksSchema,
-  bookmarkIdParamSchema,
-  updateBookmarkSchema,
   deleteBookmarkSchema,
 };
 

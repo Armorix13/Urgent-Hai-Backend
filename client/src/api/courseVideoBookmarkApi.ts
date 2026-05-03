@@ -1,32 +1,11 @@
 import { apiFetch } from "@/lib/api";
 
-export type CourseSummary = {
-  _id: string;
-  title?: string;
-  identifierId?: string | null;
-  thumbnail?: string | null;
-  category?: string | null;
-  isDeleted?: boolean;
-};
-
-export type BookmarkCourseVideo = {
-  _id: string;
-  videoUrl?: string | null;
-  title?: string;
-  description?: string;
-  order?: number;
-  isActive?: boolean;
-  courseId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
 export type CourseVideoBookmarkRow = {
   _id: string;
   userId: string | null;
-  note?: string;
-  courseVideo: BookmarkCourseVideo | null;
-  course: CourseSummary | null;
+  title: string;
+  videoUrl: string;
+  description: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -40,10 +19,15 @@ export type BookmarksListResponse = {
   totalPages: number;
 };
 
-export type BookmarkMutationResponse = {
+export type AddBookmarkResponse = {
   success: boolean;
   message?: string;
-  alreadyBookmarked?: boolean;
+  bookmark: CourseVideoBookmarkRow;
+};
+
+export type DeleteBookmarkResponse = {
+  success: boolean;
+  message?: string;
   bookmark: CourseVideoBookmarkRow;
 };
 
@@ -63,27 +47,15 @@ export function fetchMyCourseVideoBookmarks(params?: { page?: number; limit?: nu
   );
 }
 
-/** POST /course-video-bookmarks — bookmark a CourseVideo by id. */
-export function createCourseVideoBookmark(body: { courseVideoId: string; note?: string }) {
-  return apiFetch<BookmarkMutationResponse>("/course-video-bookmarks", { method: "POST", json: body });
-}
-
-export function fetchCourseVideoBookmarkById(id: string) {
-  return apiFetch<{ success: boolean; bookmark: CourseVideoBookmarkRow }>(
-    `/course-video-bookmarks/${id}`,
-  );
-}
-
-export function updateCourseVideoBookmark(id: string, body: { note: string }) {
-  return apiFetch<{ success: boolean; bookmark: CourseVideoBookmarkRow }>(
-    `/course-video-bookmarks/${id}`,
-    { method: "PUT", json: body },
-  );
+/** POST /course-video-bookmarks — `userId` is taken from the JWT. */
+export function createCourseVideoBookmark(body: {
+  title: string;
+  videoUrl: string;
+  description?: string;
+}) {
+  return apiFetch<AddBookmarkResponse>("/course-video-bookmarks", { method: "POST", json: body });
 }
 
 export function deleteCourseVideoBookmark(id: string) {
-  return apiFetch<{ success: boolean; bookmark: CourseVideoBookmarkRow }>(
-    `/course-video-bookmarks/${id}`,
-    { method: "DELETE" },
-  );
+  return apiFetch<DeleteBookmarkResponse>(`/course-video-bookmarks/${id}`, { method: "DELETE" });
 }

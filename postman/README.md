@@ -34,7 +34,7 @@
 | **Subscription** | Purchase, Confirm Payment, Get Active, Get All, Get by ID |
 | **Course** | Get All, Get by ID, Get Similar, Create, Update, Delete (Soft/Hard) |
 | **Course Video** | Get by Course, Add, Update, Delete |
-| **Course video bookmarks** | Get my bookmarks, Add bookmark, Get by ID, Update note, Delete (learner JWT; base path `/course-video-bookmarks`) |
+| **Course video bookmarks** | Get my bookmarks, Add bookmark (`title`, `videoUrl`, optional `description`), Delete (learner JWT; `/course-video-bookmarks`) |
 | **Enrollment** | Enroll, Get My Enrollments, Get by ID, Update Progress, Cancel |
 | **Previous Result** | Create, Get All, Get by ID, Update, Delete |
 | **File Upload** | Upload Image |
