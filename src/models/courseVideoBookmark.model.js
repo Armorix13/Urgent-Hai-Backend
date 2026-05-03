@@ -34,4 +34,30 @@ courseVideoBookmarkSchema.index({ userId: 1, updatedAt: -1 });
 
 const CourseVideoBookmark = mongoose.model("CourseVideoBookmark", courseVideoBookmarkSchema);
 
+/** Old schema had a unique (userId, courseVideoId); without courseVideoId, Mongo treats null and blocks multiple rows per user. Drop legacy indexes after connect. */
+async function dropLegacyBookmarkIndexes() {
+  try {
+    await CourseVideoBookmark.syncIndexes();
+  } catch (e) {
+    console.warn("[CourseVideoBookmark] syncIndexes:", e?.message || e);
+  }
+  const legacyNames = ["userId_1_courseVideoId_1"];
+  for (const name of legacyNames) {
+    try {
+      await CourseVideoBookmark.collection.dropIndex(name);
+      console.log(`[CourseVideoBookmark] dropped legacy index: ${name}`);
+    } catch {
+      // index not present
+    }
+  }
+}
+
+function scheduleBookmarkIndexCleanup() {
+  const run = () => void dropLegacyBookmarkIndexes();
+  if (mongoose.connection.readyState === 1) run();
+  else mongoose.connection.once("open", run);
+}
+
+scheduleBookmarkIndexCleanup();
+
 export default CourseVideoBookmark;
