@@ -64,6 +64,22 @@ function populateProduct(q) {
     .populate({ path: "userId", select: PUBLIC_USER_SELECT });
 }
 
+/** In-place Fisher-Yates shuffle. */
+function shuffleArrayInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+async function loadProductsInOrder(orderedIds) {
+  if (!orderedIds.length) return [];
+  const byId = await populateProduct(Product.find({ _id: { $in: orderedIds } }));
+  const map = new Map(byId.map((p) => [p._id.toString(), p]));
+  return orderedIds.map((id) => map.get(id.toString())).filter(Boolean);
+}
+
 /** Escape user input for safe use in MongoDB `$regexMatch` / `RegExp`. */
 function escapeRegexForSearch(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -126,12 +142,11 @@ const getAllProducts = async (req) => {
   const categoryMatch = categoryId ? { category: new mongoose.Types.ObjectId(categoryId) } : null;
 
   let searchMatch = null;
-  let searchPattern = "";
   let categoryIdsForSearch = [];
 
   if (searchTrimmed) {
-    searchPattern = escapeRegexForSearch(searchTrimmed);
-    const re = new RegExp(searchPattern, "i");
+    const escaped = escapeRegexForSearch(searchTrimmed);
+    const re = new RegExp(escaped, "i");
     const cats = await Category.find({
       $or: [{ name: re }, { description: re }],
     })
@@ -180,106 +195,12 @@ const getAllProducts = async (req) => {
 
   const total = await Product.countDocuments(matchQuery);
 
-  let products;
-  if (searchTrimmed) {
-    const pattern = searchPattern;
-    const rankExpr = {
-      $cond: [
-        {
-          $regexMatch: {
-            input: { $toString: { $ifNull: ["$name", ""] } },
-            regex: pattern,
-            options: "i",
-          },
-        },
-        1,
-        {
-          $cond: [
-            {
-              $regexMatch: {
-                input: { $toString: { $ifNull: ["$description", ""] } },
-                regex: pattern,
-                options: "i",
-              },
-            },
-            2,
-            {
-              $cond: [
-                {
-                  $gt: [
-                    {
-                      $size: {
-                        $filter: {
-                          input: { $ifNull: ["$tags", []] },
-                          as: "t",
-                          cond: {
-                            $regexMatch: {
-                              input: { $toString: "$$t" },
-                              regex: pattern,
-                              options: "i",
-                            },
-                          },
-                        },
-                      },
-                    },
-                    0,
-                  ],
-                },
-                3,
-                {
-                  $cond: [
-                    {
-                      $regexMatch: {
-                        input: { $toString: { $ifNull: ["$contact", ""] } },
-                        regex: pattern,
-                        options: "i",
-                      },
-                    },
-                    4,
-                    {
-                      $cond: [
-                        {
-                          $and: [
-                            { $ne: [{ $ifNull: ["$category", null] }, null] },
-                            { $in: ["$category", categoryIdsForSearch] },
-                          ],
-                        },
-                        5,
-                        6,
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-
-    const pipeline = [
-      { $match: matchQuery },
-      { $addFields: { _searchRank: rankExpr } },
-      { $sort: { _searchRank: 1, createdAt: -1, _id: 1 } },
-      { $skip: skip },
-      { $limit: limit },
-      { $project: { _searchRank: 0 } },
-    ];
-
-    const ordered = await Product.aggregate(pipeline);
-    const ids = ordered.map((d) => d._id);
-    if (!ids.length) {
-      products = [];
-    } else {
-      const byId = await populateProduct(Product.find({ _id: { $in: ids } }));
-      const map = new Map(byId.map((p) => [p._id.toString(), p]));
-      products = ids.map((id) => map.get(id.toString())).filter(Boolean);
-    }
-  } else {
-    products = await populateProduct(
-      Product.find(matchQuery).sort({ createdAt: -1 }).skip(skip).limit(limit),
-    );
-  }
+  // Always random order for list API.
+  const idRows = await Product.find(matchQuery).select("_id").lean();
+  const ids = idRows.map((r) => r._id);
+  shuffleArrayInPlace(ids);
+  const pageIds = ids.slice(skip, skip + limit);
+  const products = await loadProductsInOrder(pageIds);
 
   return {
     products: products.map((p) => formatProductDTO(p, viewer)),
