@@ -135,6 +135,19 @@ function rethrowDuplicateIdentifierId(err) {
   throw err;
 }
 
+function resolveCourseFilter(filterRaw) {
+  const filter = String(filterRaw || "")
+    .trim()
+    .toLowerCase();
+  if (!filter) return { courseType: null, level: null };
+  if (filter === "paid") return { courseType: 1, level: null };
+  if (filter === "free") return { courseType: 2, level: null };
+  if (filter === "beginner" || filter === "intermediate" || filter === "advanced") {
+    return { courseType: null, level: filter };
+  }
+  return { courseType: null, level: null };
+}
+
 const addCourse = async (req) => {
   try {
     const body = sanitizeCoursePayload(req.body);
@@ -189,6 +202,7 @@ const getCoursesWithPagination = async (req) => {
       limit,
       search,
       courseType,
+      filter,
       category,
       level,
       sortBy,
@@ -201,14 +215,17 @@ const getCoursesWithPagination = async (req) => {
     } = req.query;
 
     const tagsArr = tags ? tags.split(",").map((t) => t.trim().toLowerCase()) : null;
+    const resolvedFilter = resolveCourseFilter(filter);
+    const effectiveCourseType = courseType ? parseInt(courseType, 10) : resolvedFilter.courseType;
+    const effectiveLevel = level || resolvedFilter.level || null;
 
     const result = await Course.getCoursesWithPagination({
       page: page || 1,
       limit: limit || 10,
       search: search || "",
-      courseType: courseType ? parseInt(courseType) : null,
+      courseType: effectiveCourseType,
       category: category || null,
-      level: level || null,
+      level: effectiveLevel,
       sortBy: sortBy || "createdAt",
       sortOrder: sortOrder || "desc",
       minPrice: minPrice ? parseFloat(minPrice) : null,
@@ -255,6 +272,7 @@ const getCoursesWithPaginationAdmin = async (req) => {
       limit,
       search,
       courseType,
+      filter,
       category,
       level,
       sortBy,
@@ -266,6 +284,9 @@ const getCoursesWithPaginationAdmin = async (req) => {
     } = req.query;
 
     const tagsArr = tags ? tags.split(",").map((t) => t.trim().toLowerCase()) : null;
+    const resolvedFilter = resolveCourseFilter(filter);
+    const effectiveCourseType = courseType ? parseInt(courseType, 10) : resolvedFilter.courseType;
+    const effectiveLevel = level || resolvedFilter.level || null;
 
     /** Mobile / legacy: omit `mine` → full admin list even with a collaborator token. Web passes `mine=true`. */
     const filterByCollaboratorId =
@@ -279,9 +300,9 @@ const getCoursesWithPaginationAdmin = async (req) => {
       page: page || 1,
       limit: limit || 10,
       search: search || "",
-      courseType: courseType ? parseInt(courseType) : null,
+      courseType: effectiveCourseType,
       category: category || null,
-      level: level || null,
+      level: effectiveLevel,
       sortBy: sortBy || "createdAt",
       sortOrder: sortOrder || "desc",
       minPrice: minPrice ? parseFloat(minPrice) : null,

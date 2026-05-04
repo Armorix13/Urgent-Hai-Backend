@@ -107,6 +107,16 @@ const getCoursesSchema = {
     courseType: Joi.number().valid(1, 2).optional(),
     category: Joi.string().optional(),
     level: Joi.string().valid("beginner", "intermediate", "advanced").optional(),
+    /**
+     * Convenience filter alias:
+     * - paid/free -> courseType 1/2
+     * - beginner/intermediate/advanced -> level
+     */
+    filter: Joi.string()
+      .trim()
+      .lowercase()
+      .valid("paid", "free", "beginner", "intermediate", "advanced")
+      .optional(),
     sortBy: Joi.string().optional(),
     sortOrder: Joi.string().valid("asc", "desc").optional(),
     minPrice: Joi.number().optional(),
