@@ -277,6 +277,10 @@ const loginUser = async (req) => {
       throw new Error("User not found.");
     }
 
+    if (!user.isVerified) {
+      throw new Error("Account is not verified. Please verify your account first.");
+    }
+
     const isPasswordCorrect = await helper.verifyPassword(
       password,
       user.password
