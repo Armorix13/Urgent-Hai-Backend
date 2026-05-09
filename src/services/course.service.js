@@ -487,6 +487,50 @@ const updateCourse = async (req) => {
   }
 };
 
+/**
+ * All non-deleted courses for a collaborator, with CourseVideo list, aggregate rating fields,
+ * full embedded course document, and every learner rating + public user profile (`courseRatings`).
+ */
+const getCoursesFullByCollaboratorId = async (req) => {
+  const { collaboratorId } = req.params;
+  const raw = collaboratorId != null ? String(collaboratorId).trim() : "";
+  if (!raw || !mongoose.Types.ObjectId.isValid(raw)) {
+    throw new Error("Invalid collaborator id");
+  }
+
+  const exists = await Collaborator.exists({ _id: raw });
+  if (!exists) {
+    throw new Error("Collaborator not found");
+  }
+
+  const collabOid = new mongoose.Types.ObjectId(raw);
+  const courses = await Course.find({
+    collaborators: collabOid,
+    isDeleted: false,
+  })
+    .populate(courseCollaboratorPopulate)
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const ids = courses.map((c) => c._id);
+  const videoMap = await fetchVideosGroupedByCourseIds(ids);
+
+  let enriched = courses.map((c) => {
+    const base = attachCourseTypeName(enrichCourseCollaborator(c));
+    const videos = videoMap.get(c._id.toString()) ?? [];
+    const withVideos = attachVideosToCourseLean(base, videos);
+    return applyWatchPolicyToCourse(withVideos, FULL_LISTING_ACCESS);
+  });
+
+  enriched = await attachCourseRatingsForCourses(enriched, { enrichUser: true });
+
+  return {
+    collaboratorId: raw,
+    courses: enriched,
+    totalCourses: enriched.length,
+  };
+};
+
 const deleteCourse = async (req) => {
   try {
     const { id } = req.params;
@@ -537,6 +581,7 @@ export const courseService = {
   getCoursesWithPaginationAdmin,
   getCourseById,
   getSimilarCourses,
+  getCoursesFullByCollaboratorId,
   updateCourse,
   deleteCourse,
   hardDeleteCourse,

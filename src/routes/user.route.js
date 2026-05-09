@@ -77,6 +77,12 @@ userRoute.post(
 userRoute.delete("/delete-account", authenticate, userController.deleteAccount);
 
 userRoute.get(
+  "/:id/with-products",
+  authenticate,
+  validate(userValidationSchemas.getUserByIdSchema),
+  userController.getUserWithProducts
+);
+userRoute.get(
   "/:id",
   authenticate,
   validate(userValidationSchemas.getUserByIdSchema),

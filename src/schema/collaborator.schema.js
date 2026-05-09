@@ -231,6 +231,14 @@ const lookupCollaboratorSchema = {
     }),
 };
 
+const getCollaboratorCoursesFullSchema = {
+  params: Joi.object({
+    collaboratorId: objectId.required().messages({
+      "any.required": "collaboratorId is required.",
+    }),
+  }),
+};
+
 const collaboratorValidationSchemas = {
   addCollaboratorSchema,
   updateCollaboratorSchema,
@@ -239,6 +247,7 @@ const collaboratorValidationSchemas = {
   setCollaboratorPasswordSchema,
   loginCollaboratorSchema,
   lookupCollaboratorSchema,
+  getCollaboratorCoursesFullSchema,
 };
 
 export default collaboratorValidationSchemas;

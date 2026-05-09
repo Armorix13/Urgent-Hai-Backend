@@ -1,4 +1,5 @@
 import { collaboratorService } from "../services/collaborator.service.js";
+import { courseService } from "../services/course.service.js";
 
 const addCollaborator = async (req, res, next) => {
   try {
@@ -148,6 +149,21 @@ const deleteCollaborator = async (req, res, next) => {
   }
 };
 
+const getCollaboratorCoursesFull = async (req, res, next) => {
+  try {
+    const data = await courseService.getCoursesFullByCollaboratorId(req);
+    return res.status(200).json({
+      success: true,
+      message: "Collaborator courses fetched successfully!",
+      collaboratorId: data.collaboratorId,
+      totalCourses: data.totalCourses,
+      courses: data.courses,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const collaboratorController = {
   addCollaborator,
   updateCollaborator,
@@ -159,4 +175,5 @@ export const collaboratorController = {
   setCollaboratorPassword,
   loginCollaborator,
   deleteCollaborator,
+  getCollaboratorCoursesFull,
 };

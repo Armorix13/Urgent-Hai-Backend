@@ -7,6 +7,7 @@ import {
   PUBLIC_USER_SELECT,
   enrichPublicUser,
 } from "../utils/userPublic.util.js";
+import { productService } from "./product.service.js";
 import { forgetpassword, verifyAccount } from "../utils/email.template.js";
 import { helper } from "../utils/helper.js";
 import { sendMessage } from "../utils/sendMessage.js";
@@ -797,6 +798,47 @@ const getUserProfileById = async (req) => {
   }
 };
 
+const getUserWithProducts = async (req) => {
+  try {
+    const { id } = req.params;
+    const viewerId = req.userId;
+    const viewer = {
+      authKind: req.authKind,
+      userId: req.userId ?? null,
+    };
+
+    const userLean = await User.findById(id)
+      .select(`${PUBLIC_USER_SELECT} wallet`)
+      .lean();
+    if (!userLean) {
+      throw new Error("User not found.");
+    }
+
+    const user = enrichPublicUser(userLean);
+    if (String(viewerId) !== String(id)) {
+      delete user.wallet;
+    } else {
+      const w = userLean.wallet;
+      user.wallet =
+        w == null || w === ""
+          ? 0
+          : Number.isFinite(Number(w))
+            ? Math.max(0, Number(w))
+            : 0;
+    }
+
+    const products = await productService.listProductsByOwnerUserId(id, viewer);
+
+    return {
+      user,
+      products,
+      productsTotal: products.length,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
 const addMoneyToWallet = async (req) => {
   try {
     const userId = req.userId;
@@ -882,4 +924,5 @@ export const userService = {
   addMoneyToWallet,
   getAllTransactionHistory,
   getUserProfileById,
+  getUserWithProducts,
 };

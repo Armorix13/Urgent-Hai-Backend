@@ -217,6 +217,21 @@ const getUserProfileById = async (req, res, next) => {
   }
 };
 
+const getUserWithProducts = async (req, res, next) => {
+  try {
+    const data = await userService.getUserWithProducts(req);
+    return res.status(200).json({
+      success: true,
+      message: "User profile and products fetched successfully!",
+      user: data.user,
+      products: data.products,
+      productsTotal: data.productsTotal,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const userController = {
   registerUser,
   loginUser,
@@ -235,4 +250,5 @@ export const userController = {
   addMoneyToWallet,
   getTransactionHistory,
   getUserProfileById,
+  getUserWithProducts,
 };

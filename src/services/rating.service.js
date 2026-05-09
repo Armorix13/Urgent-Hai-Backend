@@ -3,6 +3,10 @@ import CourseRating from "../models/courseRating.model.js";
 import Course from "../models/course.model.js";
 import Enrollment from "../models/enrollment.model.js";
 import { enrollmentActiveMatch } from "../utils/courseAccess.js";
+import {
+  PUBLIC_USER_SELECT,
+  enrichPublicUser,
+} from "../utils/userPublic.util.js";
 
 /**
  * Recompute Course.rating.average and rating.count from all CourseRating docs.
@@ -160,8 +164,19 @@ export async function attachUserCourseFlags(courses, userId) {
   });
 }
 
-function formatCourseRatingRow(r) {
+function formatCourseRatingRow(r, { enrichUser } = {}) {
   const u = r.user;
+  if (!u || typeof u !== "object") {
+    return {
+      _id: r._id,
+      course: r.course,
+      rating: r.rating,
+      review: r.review ?? "",
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      user: null,
+    };
+  }
   return {
     _id: r._id,
     course: r.course,
@@ -169,28 +184,33 @@ function formatCourseRatingRow(r) {
     review: r.review ?? "",
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
-    user: u
-      ? {
+    user: enrichUser
+      ? enrichPublicUser(u)
+      : {
           _id: u._id,
           userName: u.userName ?? null,
           profileImage: u.profileImage ?? null,
-        }
-      : null,
+        },
   };
 }
 
 /**
  * Attach all CourseRating rows per course (newest first). Safe user subset only.
+ * @param {object[]} courses
+ * @param {{ enrichUser?: boolean }} [options] — if true, populate full public learner profile per rating.
  */
-export async function attachCourseRatingsForCourses(courses) {
+export async function attachCourseRatingsForCourses(courses, options = {}) {
   if (!courses?.length) return courses;
   const ids = courses.map((c) => c._id).filter(Boolean);
   if (!ids.length) return courses;
 
+  const enrichUser = Boolean(options.enrichUser);
+  const userSelect = enrichUser ? PUBLIC_USER_SELECT : "userName profileImage";
+
   const rows = await CourseRating.find({ course: { $in: ids } })
     .populate({
       path: "user",
-      select: "userName profileImage",
+      select: userSelect,
     })
     .sort({ updatedAt: -1 })
     .lean();
@@ -202,7 +222,7 @@ export async function attachCourseRatingsForCourses(courses) {
   for (const r of rows) {
     const key = r.course.toString();
     if (!byCourse.has(key)) byCourse.set(key, []);
-    byCourse.get(key).push(formatCourseRatingRow(r));
+    byCourse.get(key).push(formatCourseRatingRow(r, { enrichUser }));
   }
 
   return courses.map((c) => ({

@@ -58,9 +58,19 @@ async function assertProductOwnedByLearner(req, productId) {
   }
 }
 
+const CATEGORY_DETAIL_SELECT =
+  "name description image isActive createdAt updatedAt";
+
 function populateProduct(q) {
   return q
     .populate("category", "name")
+    .populate({ path: "userId", select: PUBLIC_USER_SELECT });
+}
+
+/** Same as `populateProduct` but category includes full client-safe category fields. */
+function populateProductWithCategoryDetail(q) {
+  return q
+    .populate({ path: "category", select: CATEGORY_DETAIL_SELECT })
     .populate({ path: "userId", select: PUBLIC_USER_SELECT });
 }
 
@@ -266,10 +276,19 @@ const deleteProduct = async (req) => {
   return { ...synthetic, isCreatedByMe: true };
 };
 
+/** All products owned by `userId`, newest first; category fully populated for display. */
+const listProductsByOwnerUserId = async (userId, viewer) => {
+  const rows = await populateProductWithCategoryDetail(
+    Product.find({ userId }).sort({ updatedAt: -1 }),
+  ).lean();
+  return rows.map((p) => formatProductDTO(p, viewer));
+};
+
 export const productService = {
   addProduct,
   getAllProducts,
   getProductById,
   updateProduct,
   deleteProduct,
+  listProductsByOwnerUserId,
 };

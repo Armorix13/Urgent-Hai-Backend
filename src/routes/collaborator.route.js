@@ -58,6 +58,12 @@ collaboratorRoute.get(
   collaboratorController.getAllCollaborators
 );
 
+collaboratorRoute.get(
+  "/:collaboratorId/courses/full",
+  validate(collaboratorValidationSchemas.getCollaboratorCoursesFullSchema),
+  collaboratorController.getCollaboratorCoursesFull
+);
+
 collaboratorRoute.delete(
   "/delete/:id",
   validate(collaboratorValidationSchemas.deleteCollaboratorSchema),
