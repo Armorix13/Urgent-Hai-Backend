@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Course, { courseCollaboratorPopulate } from "../models/course.model.js";
 import Collaborator from "../models/collaborator.model.js";
 import {
+  attachVideosToCourseLean,
   fetchVideosForCourse,
   fetchVideosGroupedByCourseIds,
 } from "../utils/courseVideo.util.js";
