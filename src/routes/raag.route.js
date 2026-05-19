@@ -1,6 +1,6 @@
 import express from "express";
 import { raagController } from "../controllers/raag.controller.js";
-import { raagDetailController } from "./../controllers/raagDetail.controller";
+import { raagDetailController } from "./../controllers/raagDetail.controller.js";
 
 const router = express.Router();
 
