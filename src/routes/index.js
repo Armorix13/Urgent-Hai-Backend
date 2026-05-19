@@ -30,7 +30,7 @@ router.use("/user", userRoute);
 router.use("/category", categoryRoute);
 router.use("/product", productRoute);
 // router.use("/raag", raagRoute);
-router.use("/raag", raagDetailRoute);
+router.use("/raag", raagRoute);
 router.use("/raag-detail", raagDetailRoute);
 router.use("/video-tutorial", videoRouter);
 router.use("/gurbani", gurbaniRouter);
