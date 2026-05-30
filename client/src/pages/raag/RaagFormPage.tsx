@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, Plus, Trash2, Disc, FileText } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Disc, FileText, Play, Pause, Volume2, VolumeX, X, ExternalLink, Video } from "lucide-react";
 import { fetchCollaboratorRaagById, createCollaboratorRaag, updateCollaboratorRaag, CollaboratorBandish } from "../../api/collaboratorRaagApi";
 import { ROUTES } from "../../routes/paths";
 
@@ -36,6 +36,22 @@ export default function RaagFormPage({ readOnly = false }: Props) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Audio Playbar State
+  const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
+  const [activeAudioName, setActiveAudioName] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Media Modal Preview State
+  const [modalMedia, setModalMedia] = useState<{
+    type: "pdf" | "video" | "audio";
+    url: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     if (raagId) {
@@ -74,6 +90,75 @@ export default function RaagFormPage({ readOnly = false }: Props) {
     }
   }, [raagId]);
 
+  // Audio Controls
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch(() => setIsPlaying(false));
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, activeAudioUrl]);
+
+  const handlePlayAudio = (url: string, name: string) => {
+    if (activeAudioUrl === url) {
+      setIsPlaying(!isPlaying);
+    } else {
+      setActiveAudioUrl(url);
+      setActiveAudioName(name);
+      setIsPlaying(true);
+      setCurrentTime(0);
+    }
+  };
+
+  const togglePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (audioRef.current && duration > 0) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const width = rect.width;
+      const percentage = clickX / width;
+      audioRef.current.currentTime = percentage * duration;
+      setCurrentTime(percentage * duration);
+    }
+  };
+
+  const closeAudioPlayer = () => {
+    setIsPlaying(false);
+    setActiveAudioUrl(null);
+    setActiveAudioName(null);
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "00:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  };
+
   const handleAddBandish = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBandishName.trim()) {
@@ -103,12 +188,14 @@ export default function RaagFormPage({ readOnly = false }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert("Raag name is required");
+      alert("Raag Name is required");
       return;
     }
 
     try {
       setLoading(true);
+      setError(null);
+
       const payload = {
         name: name.trim(),
         sur: sur.trim() || null,
@@ -134,163 +221,196 @@ export default function RaagFormPage({ readOnly = false }: Props) {
       if (res.success) {
         navigate(ROUTES.dashboard.raag);
       } else {
-        alert(res.message || "Operation failed");
+        setError(res.message || "Failed to save raag configurations.");
       }
     } catch (err: any) {
-      alert(err?.message || "An unexpected error occurred");
+      setError(err?.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePreviewMedia = (type: "pdf" | "video" | "audio", url: string, name: string) => {
+    setModalMedia({ type, url, name });
+  };
+
   if (fetching) {
     return (
-      <div className="flex h-96 flex-col items-center justify-center gap-3">
+      <div className="flex h-96 flex-col items-center justify-center gap-3 rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)]">
         <Disc className="h-8 w-8 animate-spin text-[var(--app-primary)]" />
-        <p className="text-sm text-[var(--app-muted)]">Loading details...</p>
+        <p className="text-sm text-[var(--app-muted)]">Fetching Raag configuration...</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between gap-4">
-        <button
-          onClick={() => navigate(ROUTES.dashboard.raag)}
-          className="flex items-center gap-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-2 text-sm font-semibold text-[var(--app-text)] hover:bg-black/5 dark:hover:bg-white/5 transition"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to List
-        </button>
+    <div className="space-y-6 pb-24">
+      {/* Header back bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(ROUTES.dashboard.raag)}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] shadow-sm hover:bg-black/5 dark:hover:bg-white/5 transition"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="text-xl font-extrabold tracking-tight text-[var(--app-text)] sm:text-2xl">
+              {isView ? "Raag Details 🎹" : isEdit ? "Modify Raag ⚙️" : "Configure New Raag 🎼"}
+            </h1>
+            <p className="mt-0.5 text-xs text-[var(--app-muted)]">
+              {isView ? "Read-only summary of attributes." : "Set custom parameters, time zones, and lists."}
+            </p>
+          </div>
+        </div>
 
-        <h1 className="hidden text-xl font-bold text-[var(--app-text)] sm:block">
-          {isView ? "Raag Details 🎼" : isEdit ? "Edit Raag 🎹" : "Add Raag 🎵"}
-        </h1>
+        {audioUrl && (
+          <button
+            type="button"
+            onClick={() => handlePlayAudio(audioUrl, `${name} (Guide)`)}
+            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold shadow-lg transition ${
+              activeAudioUrl === audioUrl && isPlaying
+                ? "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-rose-500/20"
+                : "bg-indigo-600 text-white shadow-indigo-500/20 hover:opacity-90"
+            }`}
+          >
+            {activeAudioUrl === audioUrl && isPlaying ? (
+              <>
+                <Pause className="h-4.5 w-4.5 fill-current" /> Pause Guide Audio
+              </>
+            ) : (
+              <>
+                <Play className="h-4.5 w-4.5 fill-current ml-0.5" /> Listen to Audio Guide
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-red-200/50 bg-red-50/50 p-4 text-sm font-semibold text-red-600 dark:border-red-950/40 dark:bg-red-950/10">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-950/40 dark:bg-red-950/20 dark:text-red-300">
           {error}
         </div>
       )}
 
+      {/* Main Config Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Core Attributes Panel */}
+        {/* Core Identity */}
         <div className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-bold text-[var(--app-text)]">1. General Attributes</h2>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Raag Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                disabled={isView}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. ਰਾਗ ਮਾਝ"
-                className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Thaat (ਥਾਟ)
-              </label>
-              <input
-                type="text"
-                disabled={isView}
-                value={thaat}
-                onChange={(e) => setThaat(e.target.value)}
-                placeholder="e.g. ਖਮਾਜ"
-                className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Jaati (ਜਾਤੀ)
-              </label>
-              <input
-                type="text"
-                disabled={isView}
-                value={jaati}
-                onChange={(e) => setJaati(e.target.value)}
-                placeholder="e.g. ਸੰਪੂਰਣ-ਸੰਪੂਰਣ"
-                className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Time (ਸਮਾਂ)
-              </label>
-              <input
-                type="text"
-                disabled={isView}
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                placeholder="e.g. ਦੁਪਹਿਰ"
-                className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-              />
-            </div>
+          <h2 className="text-base font-bold text-[var(--app-text)]">1. General Identity</h2>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
+              Raag Name (in Punjabi / Gurbani format)
+            </label>
+            <input
+              type="text"
+              required
+              disabled={isView}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. ਰਾਗ ਮਾਝ"
+              className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
+            />
           </div>
         </div>
 
-        {/* Musical Details Panel */}
-        <div className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-bold text-[var(--app-text)]">2. Musical Theory</h2>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Vaadi (ਵਾਦੀ)
-              </label>
-              <input
-                type="text"
-                disabled={isView}
-                value={vaadi}
-                onChange={(e) => setVaadi(e.target.value)}
-                placeholder="e.g. ਪਾ"
-                className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Samvadi (ਸਮਵਾਦੀ)
-              </label>
-              <input
-                type="text"
-                disabled={isView}
-                value={samvadi}
-                onChange={(e) => setSamvadi(e.target.value)}
-                placeholder="e.g. ਰੇ"
-                className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Wargit Sur (ਵਰਜਿਤ ਸੁਰ)
-              </label>
-              <input
-                type="text"
-                disabled={isView}
-                value={wargitSur}
-                onChange={(e) => setWargitSur(e.target.value)}
-                placeholder="e.g. ਕੋਮਲ ਨੀ"
-                className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-              />
-            </div>
-          </div>
-
+        {/* Musicology Fields Grid */}
+        <div className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm space-y-6">
+          <h2 className="text-base font-bold text-[var(--app-text)]">2. Musical Theory & Attributes</h2>
+          
           <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
+                  Thaat (ਥਾਟ)
+                </label>
+                <input
+                  type="text"
+                  disabled={isView}
+                  value={thaat}
+                  onChange={(e) => setThaat(e.target.value)}
+                  placeholder="e.g. ਖਮਾਜ"
+                  className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
+                  Jaati (ਜਾਤੀ)
+                </label>
+                <input
+                  type="text"
+                  disabled={isView}
+                  value={jaati}
+                  onChange={(e) => setJaati(e.target.value)}
+                  placeholder="e.g. ਸੰਪੂਰਣ-ਸੰਪੂਰਣ"
+                  className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
+                  Samay / Time (ਸਮਾਂ)
+                </label>
+                <input
+                  type="text"
+                  disabled={isView}
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  placeholder="e.g. ਦੁਪਹਿਰ"
+                  className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
+                  Vaadi (ਵਾਦੀ)
+                </label>
+                <input
+                  type="text"
+                  disabled={isView}
+                  value={vaadi}
+                  onChange={(e) => setVaadi(e.target.value)}
+                  placeholder="e.g. ਪਾ"
+                  className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
+                  Samvadi (ਸੰਵਾਦੀ)
+                </label>
+                <input
+                  type="text"
+                  disabled={isView}
+                  value={samvadi}
+                  onChange={(e) => setSamvadi(e.target.value)}
+                  placeholder="e.g. ਰੇ"
+                  className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
+                  Wargit Sur (ਵਰਜਿਤ ਸੁਰ)
+                </label>
+                <input
+                  type="text"
+                  disabled={isView}
+                  value={wargitSur}
+                  onChange={(e) => setWargitSur(e.target.value)}
+                  placeholder="e.g. ਕੋਮਲ ਨੀ"
+                  className="w-full rounded-xl border border-[var(--app-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-[var(--app-text-secondary)] mb-1.5">
-                Surs (ਸੁਰ)
+                Sur scale (ਸੁਰ)
               </label>
               <input
                 type="text"
@@ -419,31 +539,42 @@ export default function RaagFormPage({ readOnly = false }: Props) {
                   key={item.sId}
                   className="flex items-start justify-between gap-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-page)]/10 p-4"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">Bandish #{item.sId}</p>
                     <p className="mt-1 text-sm font-semibold text-[var(--app-text)] truncate">{item.bandishName}</p>
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       {item.pdfUrl ? (
-                        <a
-                          href={item.pdfUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 font-semibold"
+                        <button
+                          type="button"
+                          onClick={() => handlePreviewMedia("pdf", item.pdfUrl!, `${item.bandishName} Sheet Music`)}
+                          className="flex items-center gap-1 rounded-lg border border-sky-100 bg-sky-50 px-2 py-1 text-[10px] text-sky-700 font-bold dark:border-sky-950/40 dark:bg-sky-950/20 dark:text-sky-400 hover:opacity-90 transition"
                         >
-                          <FileText className="h-3 w-3" /> PDF URL
-                        </a>
+                          <FileText className="h-3 w-3" /> View PDF Modal
+                        </button>
                       ) : (
-                        <span className="text-[10px] text-[var(--app-muted)]">No PDF</span>
+                        <span className="text-[10px] text-[var(--app-muted)] py-1">No PDF</span>
                       )}
+                      
                       {item.audioUrl && (
-                        <a
-                          href={item.audioUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold"
+                        <button
+                          type="button"
+                          onClick={() => handlePlayAudio(item.audioUrl!, `${item.bandishName} Audio`)}
+                          className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition ${
+                            activeAudioUrl === item.audioUrl && isPlaying
+                              ? "bg-red-500 border-red-500 text-white animate-pulse"
+                              : "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-950/40 dark:bg-emerald-950/20 dark:text-emerald-400 hover:opacity-90"
+                          }`}
                         >
-                          <Disc className="h-3 w-3" /> Audio URL
-                        </a>
+                          {activeAudioUrl === item.audioUrl && isPlaying ? (
+                            <>
+                              <Pause className="h-3 w-3 fill-current" /> Pause Audio
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-3 w-3 fill-current ml-0.5" /> Listen Audio
+                            </>
+                          )}
+                        </button>
                       )}
                     </div>
                   </div>
@@ -478,6 +609,131 @@ export default function RaagFormPage({ readOnly = false }: Props) {
           </button>
         )}
       </form>
+
+      {/* Floating Premium Audio Player Widget */}
+      {activeAudioUrl && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-[92%] max-w-xl -translate-x-1/2 rounded-3xl border border-indigo-500/20 bg-white/90 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 dark:border-indigo-400/10 dark:bg-zinc-950/90">
+          <audio
+            ref={audioRef}
+            src={activeAudioUrl}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={() => setIsPlaying(false)}
+            muted={isMuted}
+          />
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Disc className="h-3 w-3 animate-spin" /> Playing Gurbani Guide
+              </p>
+              <p className="mt-0.5 truncate text-sm font-extrabold text-zinc-900 dark:text-zinc-50">{activeAudioName}</p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={togglePlayPause}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:scale-105 active:scale-95 shadow-md shadow-indigo-500/20 transition"
+                title={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+              </button>
+
+              <button
+                onClick={toggleMute}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition ${isMuted ? "bg-red-500/10 border-red-500/30" : ""}`}
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted ? <VolumeX className="h-4.5 w-4.5 text-red-500" /> : <Volume2 className="h-4.5 w-4.5" />}
+              </button>
+
+              <button
+                onClick={closeAudioPlayer}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                title="Close Player"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
+            <span>{formatTime(currentTime)}</span>
+            <div
+              onClick={handleProgressClick}
+              className="relative h-1.5 w-full cursor-pointer rounded-full bg-zinc-200 dark:bg-zinc-800"
+            >
+              <div
+                style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600"
+              />
+            </div>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Unified Media Preview Overlay Modal */}
+      {modalMedia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="relative flex h-[85vh] w-full max-w-4xl flex-col rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden">
+            
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 px-6 py-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                  {modalMedia.type === "pdf" ? <FileText className="h-3 w-3" /> : <Video className="h-3 w-3" />} Gurbani Document Hub
+                </span>
+                <h3 className="mt-0.5 text-base font-extrabold text-zinc-950 dark:text-zinc-50">{modalMedia.name}</h3>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <a
+                  href={modalMedia.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open Direct
+                </a>
+                <button
+                  onClick={() => setModalMedia(null)}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 bg-zinc-50/50 dark:bg-zinc-900/30 p-4">
+              {modalMedia.type === "pdf" ? (
+                <iframe
+                  src={modalMedia.url}
+                  className="h-full w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white shadow-sm"
+                  title="PDF Preview"
+                />
+              ) : modalMedia.type === "video" ? (
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-black">
+                  <iframe
+                    src={
+                      modalMedia.url.includes("youtube.com") || modalMedia.url.includes("drive.google.com")
+                        ? modalMedia.url.replace("view?usp=sharing", "preview")
+                        : modalMedia.url
+                    }
+                    className="h-full w-full border-0"
+                    allow="autoplay; encrypted-media"
+                    allowFullScreen
+                    title="Video Preview"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-4">
+                  <Disc className="h-16 w-16 animate-spin text-indigo-500" strokeWidth={1.5} />
+                  <p className="text-sm text-zinc-400">Audio is playing in the bottom playbar.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

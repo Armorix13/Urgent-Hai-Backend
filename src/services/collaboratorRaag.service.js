@@ -4,7 +4,7 @@ import RaagDetailModel from "../models/raagDetail.model.js";
 
 /** Retrieve all Raags and their details */
 export const getAllRaags = async () => {
-  const raags = await Raag.find().sort({ createdAt: -1 }).lean();
+  const raags = await Raag.find().sort({ id: 1 }).lean();
   const results = [];
   for (const raag of raags) {
     const details = await RaagDetailModel.findOne({ raag: raag._id }).lean();
@@ -88,7 +88,7 @@ export const updateRaag = async (id, data) => {
 
   // Update properties on raagDetail
   const fields = [
-    "sur", "thaat", "wargitSur", "jaati", "time", 
+    "sur", "thaat", "wargitSur", "jaati", "time",
     "vaadi", "samvadi", "aroh", "avroh", "audioUrl", "listOfBandish"
   ];
   for (const field of fields) {

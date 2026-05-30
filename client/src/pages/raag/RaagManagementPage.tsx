@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Music, Plus, Search, Trash2, Edit, Eye, Play, RefreshCw } from "lucide-react";
+import { Music, Plus, Search, Trash2, Edit, Eye, Play, Pause, RefreshCw, Volume2, VolumeX, X, FileText, ExternalLink, Disc, Video } from "lucide-react";
 import { fetchCollaboratorRaags, deleteCollaboratorRaag, CollaboratorRaag } from "../../api/collaboratorRaagApi";
 import { ROUTES, raagDetailPath, raagEditPath } from "../../routes/paths";
 
@@ -11,6 +11,22 @@ export default function RaagManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Audio Playbar State
+  const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
+  const [activeAudioName, setActiveAudioName] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Media Modal Preview State
+  const [modalMedia, setModalMedia] = useState<{
+    type: "pdf" | "video" | "audio";
+    url: string;
+    name: string;
+  } | null>(null);
 
   const loadRaags = async () => {
     try {
@@ -33,6 +49,76 @@ export default function RaagManagementPage() {
     loadRaags();
   }, []);
 
+  // Audio Controls
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch(() => setIsPlaying(false));
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, activeAudioUrl]);
+
+  const handlePlayAudio = (url: string, name: string) => {
+    if (activeAudioUrl === url) {
+      setIsPlaying(!isPlaying);
+    } else {
+      setActiveAudioUrl(url);
+      setActiveAudioName(name);
+      setIsPlaying(true);
+      setCurrentTime(0);
+    }
+  };
+
+  const togglePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (audioRef.current && duration > 0) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const width = rect.width;
+      const percentage = clickX / width;
+      audioRef.current.currentTime = percentage * duration;
+      setCurrentTime(percentage * duration);
+    }
+  };
+
+  const closeAudioPlayer = () => {
+    setIsPlaying(false);
+    setActiveAudioUrl(null);
+    setActiveAudioName(null);
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "00:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  // Delete Action
   const handleDelete = async (id: string) => {
     try {
       const res = await deleteCollaboratorRaag(id);
@@ -54,8 +140,10 @@ export default function RaagManagementPage() {
     return nameMatch || thaatMatch || jaatiMatch;
   });
 
+
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Upper Action Banner */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -178,12 +266,21 @@ export default function RaagManagementPage() {
                             {raag.name}
                           </span>
                           {hasAudio && (
-                            <span
-                              title="Has audio details"
-                              className="rounded-full bg-emerald-500/10 p-1 text-emerald-600 dark:text-emerald-400"
+                            <button
+                              onClick={() => handlePlayAudio(raag.details!.audioUrl!, raag.name)}
+                              className={`rounded-full p-1 transition ${
+                                activeAudioUrl === raag.details?.audioUrl && isPlaying
+                                  ? "bg-indigo-600 text-white animate-pulse"
+                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                              }`}
+                              title={activeAudioUrl === raag.details?.audioUrl && isPlaying ? "Pause Audio" : "Play Audio"}
                             >
-                              <Play className="h-3 w-3 fill-current" />
-                            </span>
+                              {activeAudioUrl === raag.details?.audioUrl && isPlaying ? (
+                                <Pause className="h-3.5 w-3.5 fill-current" />
+                              ) : (
+                                <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                              )}
+                            </button>
                           )}
                         </div>
                       </td>
@@ -260,6 +357,137 @@ export default function RaagManagementPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Spotify-like Premium Audio Player Widget */}
+      {activeAudioUrl && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-[92%] max-w-xl -translate-x-1/2 rounded-3xl border border-indigo-500/20 bg-white/90 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 dark:border-indigo-400/10 dark:bg-zinc-950/90">
+          <audio
+            ref={audioRef}
+            src={activeAudioUrl}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={() => setIsPlaying(false)}
+            muted={isMuted}
+          />
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Disc className="h-3 w-3 animate-spin" /> Playing Gurbani Guide
+              </p>
+              <p className="mt-0.5 truncate text-sm font-extrabold text-zinc-900 dark:text-zinc-50">{activeAudioName}</p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* Play/Pause Button */}
+              <button
+                onClick={togglePlayPause}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:scale-105 active:scale-95 shadow-md shadow-indigo-500/20 transition"
+                title={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+              </button>
+
+              {/* Mute/Unmute Button */}
+              <button
+                onClick={toggleMute}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition ${isMuted ? "bg-red-500/10 border-red-500/30" : ""}`}
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted ? <VolumeX className="h-4.5 w-4.5 text-red-500" /> : <Volume2 className="h-4.5 w-4.5" />}
+              </button>
+
+              {/* Close Button */}
+              <button
+                onClick={closeAudioPlayer}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                title="Close Player"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Progress Timeline bar */}
+          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
+            <span>{formatTime(currentTime)}</span>
+            <div
+              onClick={handleProgressClick}
+              className="relative h-1.5 w-full cursor-pointer rounded-full bg-zinc-200 dark:bg-zinc-800"
+            >
+              <div
+                style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600"
+              />
+            </div>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Unified Media Preview Overlay Modal */}
+      {modalMedia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="relative flex h-[85vh] w-full max-w-4xl flex-col rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 px-6 py-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                  {modalMedia.type === "pdf" ? <FileText className="h-3 w-3" /> : <Video className="h-3 w-3" />} Gurbani Document Hub
+                </span>
+                <h3 className="mt-0.5 text-base font-extrabold text-zinc-950 dark:text-zinc-50">{modalMedia.name}</h3>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <a
+                  href={modalMedia.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open Direct
+                </a>
+                <button
+                  onClick={() => setModalMedia(null)}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content Frame */}
+            <div className="flex-1 bg-zinc-50/50 dark:bg-zinc-900/30 p-4">
+              {modalMedia.type === "pdf" ? (
+                <iframe
+                  src={modalMedia.url}
+                  className="h-full w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white shadow-sm"
+                  title="PDF Preview"
+                />
+              ) : modalMedia.type === "video" ? (
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-black">
+                  <iframe
+                    src={
+                      modalMedia.url.includes("youtube.com") || modalMedia.url.includes("drive.google.com")
+                        ? modalMedia.url.replace("view?usp=sharing", "preview")
+                        : modalMedia.url
+                    }
+                    className="h-full w-full border-0"
+                    allow="autoplay; encrypted-media"
+                    allowFullScreen
+                    title="Video Preview"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-4">
+                  <Disc className="h-16 w-16 animate-spin text-indigo-500" strokeWidth={1.5} />
+                  <p className="text-sm text-zinc-400">Audio is playing in the bottom playbar.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
