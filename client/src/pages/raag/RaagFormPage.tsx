@@ -269,11 +269,10 @@ export default function RaagFormPage({ readOnly = false }: Props) {
           <button
             type="button"
             onClick={() => handlePlayAudio(audioUrl, `${name} (Guide)`)}
-            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold shadow-lg transition ${
-              activeAudioUrl === audioUrl && isPlaying
-                ? "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-rose-500/20"
-                : "bg-indigo-600 text-white shadow-indigo-500/20 hover:opacity-90"
-            }`}
+            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold shadow-lg transition ${activeAudioUrl === audioUrl && isPlaying
+              ? "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-rose-500/20"
+              : "bg-indigo-600 text-white shadow-indigo-500/20 hover:opacity-90"
+              }`}
           >
             {activeAudioUrl === audioUrl && isPlaying ? (
               <>
@@ -318,7 +317,7 @@ export default function RaagFormPage({ readOnly = false }: Props) {
         {/* Musicology Fields Grid */}
         <div className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm space-y-6">
           <h2 className="text-base font-bold text-[var(--app-text)]">2. Musical Theory & Attributes</h2>
-          
+
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
@@ -554,16 +553,15 @@ export default function RaagFormPage({ readOnly = false }: Props) {
                       ) : (
                         <span className="text-[10px] text-[var(--app-muted)] py-1">No PDF</span>
                       )}
-                      
+
                       {item.audioUrl && (
                         <button
                           type="button"
                           onClick={() => handlePlayAudio(item.audioUrl!, `${item.bandishName} Audio`)}
-                          className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition ${
-                            activeAudioUrl === item.audioUrl && isPlaying
-                              ? "bg-red-500 border-red-500 text-white animate-pulse"
-                              : "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-950/40 dark:bg-emerald-950/20 dark:text-emerald-400 hover:opacity-90"
-                          }`}
+                          className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition ${activeAudioUrl === item.audioUrl && isPlaying
+                            ? "bg-red-500 border-red-500 text-white animate-pulse"
+                            : "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-950/40 dark:bg-emerald-950/20 dark:text-emerald-400 hover:opacity-90"
+                            }`}
                         >
                           {activeAudioUrl === item.audioUrl && isPlaying ? (
                             <>
@@ -628,7 +626,7 @@ export default function RaagFormPage({ readOnly = false }: Props) {
               </p>
               <p className="mt-0.5 truncate text-sm font-extrabold text-zinc-900 dark:text-zinc-50">{activeAudioName}</p>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <button
                 onClick={togglePlayPause}
@@ -676,7 +674,7 @@ export default function RaagFormPage({ readOnly = false }: Props) {
       {modalMedia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
           <div className="relative flex h-[85vh] w-full max-w-4xl flex-col rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden">
-            
+
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 px-6 py-4">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
@@ -684,7 +682,7 @@ export default function RaagFormPage({ readOnly = false }: Props) {
                 </span>
                 <h3 className="mt-0.5 text-base font-extrabold text-zinc-950 dark:text-zinc-50">{modalMedia.name}</h3>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <a
                   href={modalMedia.url}

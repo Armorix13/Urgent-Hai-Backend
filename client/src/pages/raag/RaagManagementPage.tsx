@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Music, Plus, Search, Trash2, Edit, Eye, Play, Pause, RefreshCw, Volume2, VolumeX, X, FileText, ExternalLink, Disc, Video } from "lucide-react";
+import { Music, Plus, Search, Trash2, Edit, Eye, Play, Pause, Volume2, VolumeX, X, FileText, ExternalLink, Disc, Video } from "lucide-react";
 import { fetchCollaboratorRaags, deleteCollaboratorRaag, CollaboratorRaag } from "../../api/collaboratorRaagApi";
 import { ROUTES, raagDetailPath, raagEditPath } from "../../routes/paths";
 
@@ -206,9 +206,56 @@ export default function RaagManagementPage() {
 
       {/* Main Table / Grid */}
       {loading ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)]">
-          <RefreshCw className="h-8 w-8 animate-spin text-[var(--app-primary)]" />
-          <p className="text-sm text-[var(--app-muted)]">Loading Gurbani raags...</p>
+        <div className="overflow-hidden rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-sm animate-pulse">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--app-border)] bg-[var(--app-page)]/50 text-[10px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
+                  <th className="px-6 py-4">ID</th>
+                  <th className="px-6 py-4">Raag Name</th>
+                  <th className="px-6 py-4">Thaat</th>
+                  <th className="px-6 py-4">Jaati</th>
+                  <th className="px-6 py-4">Time</th>
+                  <th className="px-6 py-4 text-center">Bandishes</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--app-border)]">
+                {[...Array(5)].map((_, idx) => (
+                  <tr key={idx} className="bg-transparent">
+                    <td className="px-6 py-5">
+                      <div className="h-4 w-8 rounded bg-zinc-200 dark:bg-zinc-800" />
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+                        <div className="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-800" />
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="h-4 w-20 rounded bg-zinc-200 dark:bg-zinc-800" />
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="h-6 w-24 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="h-4 w-16 rounded bg-zinc-200 dark:bg-zinc-800" />
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <div className="mx-auto h-6 w-6 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="h-8 w-8 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+                        <div className="h-8 w-8 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+                        <div className="h-8 w-8 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : error ? (
         <div className="rounded-3xl border border-red-200/50 bg-red-50/50 p-6 text-center dark:border-red-950/40 dark:bg-red-950/10">
