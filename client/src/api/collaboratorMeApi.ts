@@ -14,6 +14,8 @@ export type CollaboratorMe = {
   sectionCount?: number;
   /** From GET/PATCH `/collaborator/me` — whether a sign-in password is already set. */
   hasPassword?: boolean;
+  wallet?: number;
+  isRaagManagement?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };

@@ -92,6 +92,15 @@ export function pageTitleForPath(pathname: string): string {
   if (pathname === ROUTES.dashboard.course || pathname.startsWith(`${ROUTES.dashboard.course}/`)) {
     return "Course";
   }
+  if (pathname === ROUTES.dashboard.raagNew || pathname.endsWith("/raag/new")) {
+    return "Add raag";
+  }
+  if (/\/raag\/[^/]+\/edit$/.test(pathname)) {
+    return "Edit raag";
+  }
+  if (pathname === ROUTES.dashboard.raag || pathname.startsWith(`${ROUTES.dashboard.raag}/`)) {
+    return "Raag Management";
+  }
   for (const section of sidebarNav) {
     const hit = section.items.find((i) => i.path === pathname);
     if (hit) return hit.label;

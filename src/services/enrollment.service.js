@@ -2,6 +2,7 @@ import Enrollment from "../models/enrollment.model.js";
 import Course from "../models/course.model.js";
 import User from "../models/user.model.js";
 import WalletTransaction from "../models/walletTransaction.model.js";
+import Collaborator from "../models/collaborator.model.js";
 import {
   attachVideosToCourseLean,
   fetchVideosForCourse,
@@ -248,6 +249,34 @@ const enroll = async (req) => {
         balanceBefore: walletBalanceBefore,
         balanceAfter: walletBalanceAfter,
       }).catch((e) => console.error("WalletTransaction record failed:", e));
+
+      // Credit to Collaborator's wallet if course has a collaborator
+      if (course.collaborators) {
+        try {
+          const collaborator = await Collaborator.findById(course.collaborators);
+          if (collaborator) {
+            const collabBalanceBefore = Number(collaborator.wallet ?? 0);
+            collaborator.wallet = collabBalanceBefore + walletDeducted;
+            await collaborator.save();
+            const collabBalanceAfter = Number(collaborator.wallet);
+
+            await WalletTransaction.create({
+              collaboratorId: course.collaborators,
+              type: "credit",
+              amount: walletDeducted,
+              reason: "course_enrollment",
+              title: `Earned from ${course.title || "Course"}`,
+              description: `User purchased your course: ${course.title || courseId}`,
+              referenceId: enrollment._id,
+              referenceModel: "Enrollment",
+              balanceBefore: collabBalanceBefore,
+              balanceAfter: collabBalanceAfter,
+            }).catch((e) => console.error("Collaborator WalletTransaction record failed:", e));
+          }
+        } catch (collabErr) {
+          console.error("Collaborator wallet update failed:", collabErr);
+        }
+      }
     }
 
     const populated = await Enrollment.findById(enrollment._id)

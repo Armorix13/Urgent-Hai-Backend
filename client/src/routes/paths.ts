@@ -12,6 +12,8 @@ export const ROUTES = {
     suggestion: `${D}/suggestion`,
     rating: `${D}/rating`,
     settings: `${D}/settings`,
+    raag: `${D}/raag`,
+    raagNew: `${D}/raag/new`,
   },
 } as const;
 
@@ -29,6 +31,14 @@ export function courseDetailPath(id: string) {
 
 export function courseEditPath(id: string) {
   return `${D}/course/${id}/edit`;
+}
+
+export function raagDetailPath(id: string) {
+  return `${D}/raag/${id}`;
+}
+
+export function raagEditPath(id: string) {
+  return `${D}/raag/${id}/edit`;
 }
 
 export type DashboardPath =

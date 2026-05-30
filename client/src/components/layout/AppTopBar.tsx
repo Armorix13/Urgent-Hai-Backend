@@ -1,5 +1,6 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 
 type Props = {
   title?: string;
@@ -7,6 +8,8 @@ type Props = {
 
 export default function AppTopBar({ title = "Dashboard" }: Props) {
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const isCollaborator = user?.accountType === "collaborator";
 
   return (
     <header
@@ -64,6 +67,22 @@ export default function AppTopBar({ title = "Dashboard" }: Props) {
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         </div>
+
+        {isCollaborator && (
+          <div className="flex items-center gap-1.5 rounded-full border border-indigo-200/50 bg-gradient-to-r from-indigo-50/80 to-purple-50/80 px-3.5 py-2 shadow-sm dark:border-indigo-500/30 dark:from-indigo-950/40 dark:to-purple-950/40">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/15 dark:text-indigo-400">
+              <svg className="h-3.5 w-3.5 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                <path d="M6 3h12l4 6-10 12L2 9z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+              {user?.wallet ?? 0}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+              💎
+            </span>
+          </div>
+        )}
 
         <button
           type="button"

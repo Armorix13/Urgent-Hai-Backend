@@ -24,6 +24,8 @@ export type AuthUser = {
   accountType?: "user" | "collaborator";
   /** Set for collaborators — used as `collaboratorId` on `POST /course`. */
   collaboratorId?: string;
+  wallet?: number;
+  isRaagManagement?: boolean;
 };
 
 type AuthContextValue = {

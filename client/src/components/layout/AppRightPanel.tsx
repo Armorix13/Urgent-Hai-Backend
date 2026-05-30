@@ -182,6 +182,27 @@ export default function AppRightPanel() {
           <p className="mt-2 max-w-[15.5rem] text-center text-xs leading-relaxed text-[var(--app-muted)]">{tagline}</p>
         </div>
 
+        {isCollaborator && (
+          <div className="mx-5 mb-4 rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/60 to-purple-50/60 p-4 shadow-sm dark:border-indigo-950/50 dark:from-indigo-950/30 dark:to-purple-950/20">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-400">
+                <svg className="h-5 w-5 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden>
+                  <path d="M6 3h12l4 6-10 12L2 9z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--app-muted)]">Diamond Portal</p>
+                <div className="mt-0.5 flex items-baseline gap-1.5">
+                  <span className="text-xl font-extrabold tracking-tight text-[var(--app-text)] tabular-nums">
+                    {user?.wallet ?? 0}
+                  </span>
+                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">💎</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mx-5 mb-5 rounded-2xl border p-4 shadow-sm" style={{ borderColor: "var(--app-border)", background: "var(--app-surface)" }}>
           <div className="flex items-center justify-between gap-2">
             <div>

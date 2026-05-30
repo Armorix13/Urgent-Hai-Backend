@@ -69,7 +69,7 @@ function errorHandler(err, req, res, next) {
             // Custom application error
             const is404 = err.toLowerCase().endsWith('not found');
             const statusCode = is404 ? 404 : 400;
-            return res.status(statusCode).json({ status: statusCode, message: err.message, data: null });
+            return res.status(statusCode).json({ status: statusCode, message: err, data: null });
         case typeof err === 'object' && err.name === 'CastError':
             // Mongoose CastError (e.g., invalid ObjectId)
             return res.status(404).json({ status: 404, message: 'Not Found', data: null });

@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Course from "../models/course.model.js";
 import Enrollment from "../models/enrollment.model.js";
 import CourseRating from "../models/courseRating.model.js";
+import Collaborator from "../models/collaborator.model.js";
+import WalletTransaction from "../models/walletTransaction.model.js";
 
 const notDeleted = { isDeleted: false };
 
@@ -279,9 +281,19 @@ async function getCollaboratorDashboard(collabOid) {
     myCourseIds.length ? { _id: { $in: myCourseIds } } : { _id: { $in: [] } },
   );
 
+  const collaboratorDoc = await Collaborator.findById(collabOid).select("wallet").lean();
+  const wallet = collaboratorDoc?.wallet ?? 0;
+
+  const walletTransactions = await WalletTransaction.find({ collaboratorId: collabOid })
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .lean();
+
   return {
     authKind: "collaborator",
     platform,
+    wallet,
+    walletTransactions,
     mine: {
       ...mineStats,
       totalEnrollments,

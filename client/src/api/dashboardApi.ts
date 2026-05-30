@@ -47,6 +47,16 @@ export type TopRatedCourse = {
   thumbnail?: string | null;
 };
 
+export type DashboardWalletTransaction = {
+  _id: string;
+  amount: number;
+  type: "credit" | "debit";
+  reason: string;
+  title: string;
+  description?: string | null;
+  createdAt: string;
+};
+
 export type DashboardAnalyticsResponse = {
   success: boolean;
   message?: string;
@@ -55,6 +65,8 @@ export type DashboardAnalyticsResponse = {
   platform: DashboardCourseStats;
   /** Populated for collaborators; always `null` for learner (`user`) tokens. */
   mine: DashboardMineStats | null;
+  wallet?: number;
+  walletTransactions?: DashboardWalletTransaction[];
   enrollmentTrend: {
     platform: TrendPoint[];
     mine: TrendPoint[] | null;

@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   BookOpen,
   Calendar,
+  Gem,
   GraduationCap,
   LayoutGrid,
   MessageSquareText,
@@ -386,6 +387,27 @@ export default function DashboardHomePage() {
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Diamond Wallet Card */}
+                <div className="group relative overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 p-5 text-white shadow-xl shadow-indigo-500/10 transition duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/20 sm:p-6 dark:border-indigo-500/30">
+                  <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/20 blur-2xl transition duration-500 group-hover:opacity-75" />
+                  <div className="relative flex items-start justify-between gap-3">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-md">
+                      <Gem className="h-6 w-6 animate-pulse" strokeWidth={2} aria-hidden />
+                    </span>
+                    <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
+                      Diamond Portal
+                    </span>
+                  </div>
+                  <p className="relative mt-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">
+                    Your Diamonds
+                  </p>
+                  <p className="relative mt-2 text-3xl font-extrabold tabular-nums tracking-tight text-white sm:text-4xl">
+                    {data.wallet ?? 0} 💎
+                  </p>
+                  <p className="relative mt-2 text-xs leading-relaxed text-white/90">
+                    Earned directly from course sales and user enrollments.
+                  </p>
+                </div>
                 <StatCard
                   label="Your total courses"
                   value={mine.totalCourses.toLocaleString()}
@@ -499,6 +521,71 @@ export default function DashboardHomePage() {
               />
             ) : null}
           </section>
+
+          {isCollaborator && (
+            <section className="space-y-5">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-muted)]">Ledger</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-[var(--app-text)]">Diamond Earnings Ledger</h2>
+                <p className="mt-1 text-sm text-[var(--app-muted)]">
+                  Track real-time coin transfers from course purchases and enrollments.
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-[0_1px_0_0_rgb(0_0_0/0.04)]">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-sm text-[var(--app-text)]">
+                    <thead>
+                      <tr className="border-b border-[var(--app-border)] bg-[var(--app-page)]/50 text-[10px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
+                        <th className="px-6 py-4">Transaction / Course</th>
+                        <th className="px-6 py-4 text-center">Type</th>
+                        <th className="px-6 py-4 text-right">Amount</th>
+                        <th className="px-6 py-4 text-right">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--app-border)]">
+                      {!data.walletTransactions || data.walletTransactions.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-12 text-center text-[var(--app-muted)]">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <Gem className="h-8 w-8 opacity-40 text-indigo-500" />
+                              <p className="font-semibold text-sm text-[var(--app-text)]">No transactions yet</p>
+                              <p className="text-xs">Your diamond history will be populated once users buy your course.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        data.walletTransactions.map((tx) => (
+                          <tr key={tx._id} className="transition hover:bg-[var(--app-page)]/50">
+                            <td className="px-6 py-4">
+                              <div className="font-semibold flex items-center gap-2">
+                                <Gem className="h-4 w-4 text-indigo-500 shrink-0" />
+                                {tx.title}
+                              </div>
+                              {tx.description && (
+                                <div className="mt-1 text-xs text-[var(--app-muted)]">{tx.description}</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                                Credit
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              +{tx.amount} 💎
+                            </td>
+                            <td className="px-6 py-4 text-right text-xs text-[var(--app-muted)]">
+                              {formatShortDate(tx.createdAt)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="grid gap-6 xl:grid-cols-3 xl:items-stretch">
             <Panel

@@ -11,6 +11,8 @@ import LoginPage from "../pages/LoginPage";
 import RatingPage from "../pages/rating/RatingPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import SuggestionPage from "../pages/suggestion/SuggestionPage";
+import RaagManagementPage from "../pages/raag/RaagManagementPage";
+import RaagFormPage from "../pages/raag/RaagFormPage";
 import { dashboardStubRoutes } from "./dashboardRouteConfig";
 import { RequireAuth, RootRedirect } from "./guards";
 import { ROUTES } from "./paths";
@@ -49,6 +51,15 @@ export function createAppRouter() {
               { path: "rating", element: <RatingPage /> },
               { path: "suggestion", element: <SuggestionPage /> },
               { path: "settings", element: <SettingsPage /> },
+              {
+                path: "raag",
+                children: [
+                  { index: true, element: <RaagManagementPage /> },
+                  { path: "new", element: <RaagFormPage /> },
+                  { path: ":raagId/edit", element: <RaagFormPage /> },
+                  { path: ":raagId", element: <RaagFormPage readOnly /> },
+                ],
+              },
               ...dashboardStubRoutes.map((r) => ({
                 path: r.path,
                 element: (

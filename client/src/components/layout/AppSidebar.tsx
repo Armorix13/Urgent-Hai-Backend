@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Star } from "lucide-react";
+import { BarChart3, BookOpen, Star, Music } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { brand, sidebarNav } from "../../config/navigation";
 import { ROUTES } from "../../routes/paths";
@@ -19,8 +19,9 @@ function BrandMark() {
 }
 
 export default function AppSidebar() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const isRaagAllowed = user?.accountType === "collaborator" && user?.isRaagManagement !== false;
 
   return (
     <aside
@@ -66,6 +67,25 @@ export default function AppSidebar() {
                   </NavLink>
                 </li>
               ))}
+
+              {section.id === "overview" && isRaagAllowed && (
+                <li>
+                  <NavLink
+                    to={ROUTES.dashboard.raag}
+                    className={({ isActive }) =>
+                      [
+                        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-[var(--app-primary-soft)] text-[var(--app-primary)] dark:bg-[var(--app-primary-soft-dark)]"
+                          : "text-[var(--app-text-secondary)] hover:bg-black/5 dark:hover:bg-white/5",
+                      ].join(" ")
+                    }
+                  >
+                    <Music className="h-5 w-5 shrink-0 opacity-85" strokeWidth={1.75} aria-hidden />
+                    Raag Management
+                  </NavLink>
+                </li>
+              )}
             </ul>
           </div>
         ))}

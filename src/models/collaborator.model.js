@@ -47,6 +47,15 @@ const collaboratorSchema = new Schema(
       type: String,
       default: null,
     },
+    wallet: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    isRaagManagement: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

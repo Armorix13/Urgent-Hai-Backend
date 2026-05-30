@@ -12,7 +12,13 @@ const walletTransactionSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+      index: true,
+    },
+    collaboratorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collaborator",
+      required: false,
       index: true,
     },
     type: {
@@ -65,6 +71,7 @@ const walletTransactionSchema = new mongoose.Schema(
 );
 
 walletTransactionSchema.index({ userId: 1, createdAt: -1 });
+walletTransactionSchema.index({ collaboratorId: 1, createdAt: -1 });
 
 const WalletTransaction = mongoose.model(
   "WalletTransaction",
