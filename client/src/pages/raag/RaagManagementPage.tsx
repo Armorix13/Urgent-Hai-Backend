@@ -315,11 +315,10 @@ export default function RaagManagementPage() {
                           {hasAudio && (
                             <button
                               onClick={() => handlePlayAudio(raag.details!.audioUrl!, raag.name)}
-                              className={`rounded-full p-1 transition ${
-                                activeAudioUrl === raag.details?.audioUrl && isPlaying
+                              className={`rounded-full p-1 transition ${activeAudioUrl === raag.details?.audioUrl && isPlaying
                                   ? "bg-indigo-600 text-white animate-pulse"
                                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
-                              }`}
+                                }`}
                               title={activeAudioUrl === raag.details?.audioUrl && isPlaying ? "Pause Audio" : "Play Audio"}
                             >
                               {activeAudioUrl === raag.details?.audioUrl && isPlaying ? (
@@ -426,7 +425,7 @@ export default function RaagManagementPage() {
               </p>
               <p className="mt-0.5 truncate text-sm font-extrabold text-zinc-900 dark:text-zinc-50">{activeAudioName}</p>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {/* Play/Pause Button */}
               <button
@@ -478,7 +477,7 @@ export default function RaagManagementPage() {
       {modalMedia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
           <div className="relative flex h-[85vh] w-full max-w-4xl flex-col rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 px-6 py-4">
               <div>
@@ -487,7 +486,7 @@ export default function RaagManagementPage() {
                 </span>
                 <h3 className="mt-0.5 text-base font-extrabold text-zinc-950 dark:text-zinc-50">{modalMedia.name}</h3>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <a
                   href={modalMedia.url}
