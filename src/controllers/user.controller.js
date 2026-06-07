@@ -1,4 +1,5 @@
 import { userService } from "../services/user.service.js";
+import System from "../models/system.model.js";
 
 const registerUser = async (req, res, next) => {
   try {
@@ -92,10 +93,12 @@ const updateUser = async (req, res, next) => {
 const getUserDetails = async (req, res, next) => {
   try {
     const user = await userService.getUserDetails(req);
+    const todayTip = await System.getTodayTip();
     return res.status(200).json({
       success: true,
       message: "user detail fetched successfully!",
       user,
+      todayTip,
     });
   } catch (error) {
     next(error);
